@@ -2,49 +2,44 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_synergy/core/utils/logger.dart';
 import 'package:flutter_synergy/features/dashboard/dashboard_service.dart';
 
-/// State for the dashboard feature.
 class DashboardState {
   final bool isLoading;
-  final List<DashboardItem> items;
+  final DashboardData? data;
   final String? errorMessage;
 
   const DashboardState({
     this.isLoading = false,
-    this.items = const [],
+    this.data,
     this.errorMessage,
   });
 
   DashboardState copyWith({
     bool? isLoading,
-    List<DashboardItem>? items,
+    DashboardData? data,
     String? errorMessage,
   }) {
     return DashboardState(
       isLoading: isLoading ?? this.isLoading,
-      items: items ?? this.items,
+      data: data ?? this.data,
       errorMessage: errorMessage,
     );
   }
 }
 
-/// StateNotifier for the dashboard page.
-///
-/// Handles initial load and pull-to-refresh.
 class DashboardController extends StateNotifier<DashboardState> {
   final DashboardService _service;
 
   DashboardController(this._service) : super(const DashboardState()) {
-    loadItems();
+    loadDashboard();
   }
 
-  /// Fetches items from the service.
-  Future<void> loadItems() async {
+  Future<void> loadDashboard() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
-      final items = await _service.fetchDashboardItems();
-      state = state.copyWith(isLoading: false, items: items);
-      AppLogger.info('Dashboard loaded ${items.length} items');
+      final data = await _service.fetchDashboardData();
+      state = state.copyWith(isLoading: false, data: data);
+      AppLogger.info('Dashboard data loaded');
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -54,7 +49,5 @@ class DashboardController extends StateNotifier<DashboardState> {
     }
   }
 
-  /// Pull-to-refresh handler – same as [loadItems] but can be
-  /// awaited by [RefreshIndicator].
-  Future<void> refresh() => loadItems();
+  Future<void> refresh() => loadDashboard();
 }
