@@ -19,6 +19,49 @@ class ShiftInfo {
   });
 }
 
+/// Daily check-in/out card: date, holiday, check-in/out times, primary action.
+class DailyAttendanceInfo {
+  final String date;
+  final String? holidayName;
+  final String dayType; // 'PUBLIC_HOLIDAY' | 'WORKING_DAY'
+  final String? checkIn; // e.g. '08:00 AM' or null
+  final String? checkOut;
+  final String primaryAction; // 'Check In' | 'Check Out'
+
+  const DailyAttendanceInfo({
+    required this.date,
+    this.holidayName,
+    required this.dayType,
+    this.checkIn,
+    this.checkOut,
+    required this.primaryAction,
+  });
+}
+
+/// This Month stats: late check-in, short workhours, absences, works.
+class MonthStats {
+  final int lateCheckinEarlyCheckout;
+  final int shortWorkhours;
+  final int absences;
+  final int works;
+  final String monthLabel; // e.g. 'January 2026'
+
+  const MonthStats({
+    required this.lateCheckinEarlyCheckout,
+    required this.shortWorkhours,
+    required this.absences,
+    required this.works,
+    required this.monthLabel,
+  });
+}
+
+/// Total timesheet summary.
+class TotalTimesheetInfo {
+  final String totalHours; // e.g. '28:00'
+
+  const TotalTimesheetInfo({required this.totalHours});
+}
+
 class QuickAction {
   final String id;
   final String title;
@@ -66,12 +109,18 @@ class Announcement {
 /// Aggregated response for the dashboard home screen.
 class DashboardData {
   final ShiftInfo shift;
+  final DailyAttendanceInfo dailyAttendance;
+  final MonthStats monthStats;
+  final TotalTimesheetInfo totalTimesheet;
   final List<QuickAction> quickActions;
   final List<ActivityItem> recentActivities;
   final List<Announcement> announcements;
 
   const DashboardData({
     required this.shift,
+    required this.dailyAttendance,
+    required this.monthStats,
+    required this.totalTimesheet,
     required this.quickActions,
     required this.recentActivities,
     required this.announcements,
@@ -99,6 +148,22 @@ class DashboardService {
           endTime: '05:30 PM',
           status: 'On Time',
         ),
+        dailyAttendance: DailyAttendanceInfo(
+          date: 'Feb 22, 2026',
+          holidayName: null,
+          dayType: 'WORKING_DAY',
+          checkIn: '08:00 AM',
+          checkOut: null,
+          primaryAction: 'Check Out',
+        ),
+        monthStats: MonthStats(
+          lateCheckinEarlyCheckout: 0,
+          shortWorkhours: 0,
+          absences: 0,
+          works: 0,
+          monthLabel: 'January 2026',
+        ),
+        totalTimesheet: TotalTimesheetInfo(totalHours: '28:00'),
         quickActions: [
           QuickAction(
             id: 'attendance',
