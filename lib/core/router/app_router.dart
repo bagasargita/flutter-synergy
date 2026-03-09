@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_synergy/features/auth/auth_page.dart';
 import 'package:flutter_synergy/features/auth/forgot_password_page.dart';
 import 'package:flutter_synergy/features/dashboard/dashboard_page.dart';
+import 'package:flutter_synergy/features/attendance/attendance_page.dart';
 
 /// Named route paths used throughout the app.
 class RoutePaths {
@@ -12,6 +13,7 @@ class RoutePaths {
   static const String login = '/login';
   static const String forgotPassword = '/forgot-password';
   static const String dashboard = '/dashboard';
+  static const String attendance = '/attendance';
 }
 
 /// Provider that exposes the [GoRouter] instance to the widget tree.
@@ -41,6 +43,11 @@ class AppRouter {
         path: RoutePaths.dashboard,
         name: 'dashboard',
         builder: (context, state) => const DashboardPage(),
+      ),
+      GoRoute(
+        path: RoutePaths.attendance,
+        name: 'attendance',
+        builder: (context, state) => const AttendancePage(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

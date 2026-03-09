@@ -7,18 +7,6 @@ import 'package:dio/dio.dart';
 // Models
 // ---------------------------------------------------------------------------
 
-class ShiftInfo {
-  final String startTime;
-  final String endTime;
-  final String status;
-
-  const ShiftInfo({
-    required this.startTime,
-    required this.endTime,
-    required this.status,
-  });
-}
-
 /// Daily check-in/out card: date, holiday, check-in/out times, primary action.
 class DailyAttendanceInfo {
   final String date;
@@ -60,6 +48,26 @@ class TotalTimesheetInfo {
   final String totalHours; // e.g. '28:00'
 
   const TotalTimesheetInfo({required this.totalHours});
+}
+
+extension DailyAttendanceCopy on DailyAttendanceInfo {
+  DailyAttendanceInfo copyWith({
+    String? date,
+    String? holidayName,
+    String? dayType,
+    String? checkIn,
+    String? checkOut,
+    String? primaryAction,
+  }) {
+    return DailyAttendanceInfo(
+      date: date ?? this.date,
+      holidayName: holidayName ?? this.holidayName,
+      dayType: dayType ?? this.dayType,
+      checkIn: checkIn ?? this.checkIn,
+      checkOut: checkOut ?? this.checkOut,
+      primaryAction: primaryAction ?? this.primaryAction,
+    );
+  }
 }
 
 class QuickAction {
@@ -108,7 +116,6 @@ class Announcement {
 
 /// Aggregated response for the dashboard home screen.
 class DashboardData {
-  final ShiftInfo shift;
   final DailyAttendanceInfo dailyAttendance;
   final MonthStats monthStats;
   final TotalTimesheetInfo totalTimesheet;
@@ -117,7 +124,6 @@ class DashboardData {
   final List<Announcement> announcements;
 
   const DashboardData({
-    required this.shift,
     required this.dailyAttendance,
     required this.monthStats,
     required this.totalTimesheet,
@@ -142,26 +148,54 @@ class DashboardService {
       // --- Mock implementation ---
       await Future<void>.delayed(const Duration(milliseconds: 800));
 
-      return const DashboardData(
-        shift: ShiftInfo(
-          startTime: '08:30 AM',
-          endTime: '05:30 PM',
-          status: 'On Time',
-        ),
+      final now = DateTime.now();
+      const monthNamesShort = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      const monthNamesLong = [
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
+      ];
+      final dateStr =
+          '${monthNamesShort[now.month - 1]} ${now.day}, ${now.year}';
+      final monthLabelStr = '${monthNamesLong[now.month - 1]} ${now.year}';
+
+      return DashboardData(
         dailyAttendance: DailyAttendanceInfo(
-          date: 'Feb 22, 2026',
+          date: dateStr,
           holidayName: null,
           dayType: 'WORKING_DAY',
-          checkIn: '08:00 AM',
+          checkIn: null,
           checkOut: null,
-          primaryAction: 'Check Out',
+          primaryAction: 'Check In',
         ),
         monthStats: MonthStats(
           lateCheckinEarlyCheckout: 0,
           shortWorkhours: 0,
           absences: 0,
           works: 0,
-          monthLabel: 'January 2026',
+          monthLabel: monthLabelStr,
         ),
         totalTimesheet: TotalTimesheetInfo(totalHours: '28:00'),
         quickActions: [

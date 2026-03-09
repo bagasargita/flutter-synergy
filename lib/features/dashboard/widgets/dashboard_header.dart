@@ -6,9 +6,11 @@ class DashboardHeader extends StatelessWidget {
   const DashboardHeader({
     super.key,
     required this.userName,
+    this.title = 'Dashboard',
   });
 
   final String userName;
+  final String title;
 
   String get _greeting {
     final hour = DateTime.now().hour;
@@ -26,7 +28,9 @@ class DashboardHeader extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 24,
-              backgroundColor: DashboardTheme.accentBlue.withValues(alpha: 0.12),
+              backgroundColor: DashboardTheme.accentBlue.withValues(
+                alpha: 0.12,
+              ),
               child: const Icon(
                 Icons.person_rounded,
                 color: DashboardTheme.accentBlue,
@@ -61,9 +65,9 @@ class DashboardHeader extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        const Text(
-          'Dashboard',
-          style: TextStyle(
+        Text(
+          title,
+          style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
             color: DashboardTheme.darkText,

@@ -45,5 +45,10 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Location permission descriptions for attendance map -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app needs access to your location to record attendance and show your position on the office map.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>This app needs access to your location to record attendance when you are near the office.</string>
 </dict>
 </plist>

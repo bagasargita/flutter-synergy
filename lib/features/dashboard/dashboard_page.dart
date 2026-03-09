@@ -11,6 +11,7 @@ import 'package:flutter_synergy/features/dashboard/widgets/dashboard_header.dart
 import 'package:flutter_synergy/features/dashboard/widgets/dashboard_theme.dart';
 import 'package:flutter_synergy/features/dashboard/widgets/daily_check_in_card.dart';
 import 'package:flutter_synergy/features/dashboard/widgets/this_month_section.dart';
+import 'package:flutter_synergy/features/calendar/calendar_page.dart';
 
 // ---------------------------------------------------------------------------
 // Main page with bottom navigation
@@ -32,11 +33,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       backgroundColor: DashboardTheme.bgColor,
       body: IndexedStack(
         index: _currentTab,
-        children: const [
-          _HomeTab(),
-          _CalendarPlaceholder(),
-          _ProfilePlaceholder(),
-        ],
+        children: const [_HomeTab(), CalendarTab(), _ProfilePlaceholder()],
       ),
       bottomNavigationBar: GlobalBottomNav(
         items: const [
@@ -98,10 +95,10 @@ class _HomeTab extends ConsumerWidget {
           DailyCheckInCard(
             attendance: data.dailyAttendance,
             onCheckIn: () {
-              // TODO: Implement check-in
+              context.push(RoutePaths.attendance);
             },
             onCheckOut: () {
-              // TODO: Implement check-out
+              context.push(RoutePaths.attendance);
             },
           ),
           const SizedBox(height: 20),
@@ -117,44 +114,6 @@ class _HomeTab extends ConsumerWidget {
             },
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Placeholder tabs
-// ---------------------------------------------------------------------------
-
-class _CalendarPlaceholder extends StatelessWidget {
-  const _CalendarPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: DashboardTheme.bgColor,
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.calendar_today_rounded,
-              size: 56,
-              color: DashboardTheme.accentBlue,
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Calendar',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: DashboardTheme.darkText,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text('Coming soon', style: TextStyle(color: Colors.grey)),
-          ],
-        ),
       ),
     );
   }
