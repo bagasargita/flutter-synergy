@@ -7,12 +7,12 @@ import 'package:flutter_synergy/core/utils/environment.dart';
 import 'package:flutter_synergy/core/utils/global_error_handler.dart';
 import 'package:flutter_synergy/core/api/api_provider.dart';
 
-void main() {
+Future<void> main() async {
   // Select environment based on build flavour / compile-time flag.
   // Change to Environment.prod() for production builds.
   final environment = Environment.dev();
 
-  GlobalErrorHandler.init(() {
+  GlobalErrorHandler.init(() async {
     WidgetsFlutterBinding.ensureInitialized();
 
     runApp(

@@ -2,6 +2,8 @@
     <!-- Location permissions for attendance map & geofencing -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Camera for attendance check-in photo -->
+    <uses-permission android:name="android.permission.CAMERA" />
     <!-- Optional: background location if needed in future -->
     <!-- <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" /> -->
     <application

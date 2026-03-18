@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_synergy/core/constants/app_constants.dart';
 import 'package:flutter_synergy/core/theme/app_theme.dart';
+import 'package:flutter_synergy/features/camera/camera_page.dart';
 
 class AttendancePage extends StatefulWidget {
   const AttendancePage({super.key});
@@ -93,6 +94,24 @@ class _AttendancePageState extends State<AttendancePage> {
     }
   }
 
+  Future<void> _openCamera() async {
+    final String? photoPath = await Navigator.of(context).push<String?>(
+      MaterialPageRoute<String?>(
+        builder: (context) => const CameraPage(
+          title: 'Check-in photo',
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (photoPath != null && photoPath.isNotEmpty) {
+      // TODO: Upload photo or save for check-in (e.g. send to API with location).
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Photo captured for check-in')),
+      );
+      Navigator.of(context).maybePop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -148,7 +167,6 @@ class _AttendancePageState extends State<AttendancePage> {
                                     'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                                 userAgentPackageName:
                                     'com.example.flutter_synergy',
-                                tileProvider: NetworkTileProvider(),
                               ),
                               PolygonLayer(
                                 polygons: [
@@ -316,10 +334,7 @@ class _AttendancePageState extends State<AttendancePage> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                  onPressed: () {
-                    // TODO: Implement real check-in logic.
-                    Navigator.of(context).maybePop();
-                  },
+                  onPressed: _openCamera,
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
