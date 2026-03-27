@@ -4,6 +4,12 @@ import 'package:flutter_synergy/core/utils/token_storage.dart';
 
 /// Interceptor that attaches the auth token to every outgoing request.
 class AuthInterceptor extends Interceptor {
+  AuthInterceptor(this._dio);
+
+  final Dio _dio;
+  Future<String?>? _refreshFuture;
+  static const _retryKey = 'auth_retry';
+
   @override
   Future<void> onRequest(
     RequestOptions options,
@@ -17,12 +23,108 @@ class AuthInterceptor extends Interceptor {
   }
 
   @override
-  void onError(DioException err, ErrorInterceptorHandler handler) {
-    if (err.response?.statusCode == 401) {
-      AppLogger.warning('Unauthorized – token may be expired');
-      // TODO: trigger token refresh or logout flow
+  Future<void> onError(
+    DioException err,
+    ErrorInterceptorHandler handler,
+  ) async {
+    final request = err.requestOptions;
+    final isUnauthorized = err.response?.statusCode == 401;
+    final isRefreshRequest = request.path == '/refresh' ||
+        request.uri.path.endsWith('/refresh');
+    final alreadyRetried = request.extra[_retryKey] == true;
+
+    if (!isUnauthorized || isRefreshRequest || alreadyRetried) {
+      handler.next(err);
+      return;
     }
-    handler.next(err);
+
+    AppLogger.warning('Unauthorized - attempting token refresh');
+
+    final refreshedAccessToken = await _refreshAccessToken(
+      baseUrl: request.baseUrl,
+    );
+
+    if (refreshedAccessToken == null || refreshedAccessToken.isEmpty) {
+      AppLogger.warning('Refresh token failed - clearing local session');
+      await TokenStorage.clearToken();
+      handler.next(err);
+      return;
+    }
+
+    request.headers['Authorization'] = 'Bearer $refreshedAccessToken';
+    request.extra[_retryKey] = true;
+
+    try {
+      final retryResponse = await _dio.fetch<dynamic>(request);
+      handler.resolve(retryResponse);
+    } on DioException catch (retryError) {
+      handler.next(retryError);
+    }
+  }
+
+  Future<String?> _refreshAccessToken({required String baseUrl}) async {
+    final inFlight = _refreshFuture;
+    if (inFlight != null) return inFlight;
+
+    _refreshFuture = _doRefresh(baseUrl: baseUrl);
+
+    try {
+      return await _refreshFuture;
+    } finally {
+      _refreshFuture = null;
+    }
+  }
+
+  Future<String?> _doRefresh({required String baseUrl}) async {
+    final refreshToken = await TokenStorage.getRefreshToken();
+    if (refreshToken == null || refreshToken.isEmpty) return null;
+
+    final refreshDio = Dio(
+      BaseOptions(
+        baseUrl: baseUrl,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ),
+    );
+
+    try {
+      final response = await refreshDio.post<Map<String, dynamic>>(
+        '/refresh',
+        data: {
+          'refresh_token': refreshToken,
+        },
+      );
+
+      final body = response.data ?? <String, dynamic>{};
+      if (body['success'] != true) return null;
+
+      final data = body['data'] as Map<String, dynamic>?;
+      final access = data?['access'] as Map<String, dynamic>?;
+      final refresh = data?['refresh'] as Map<String, dynamic>?;
+
+      final nextAccessToken = (access?['token'] ?? '').toString();
+      if (nextAccessToken.isEmpty) return null;
+
+      final nextAccessExpiresAt = (access?['expires_at'] ?? '').toString();
+      final nextRefreshToken = (refresh?['token'] ?? refreshToken).toString();
+      final nextRefreshExpiresAt = (refresh?['expires_at'] ??
+              await TokenStorage.getRefreshExpiresAt() ??
+              '')
+          .toString();
+
+      await TokenStorage.saveAuthSession(
+        accessToken: nextAccessToken,
+        accessExpiresAt: nextAccessExpiresAt,
+        refreshToken: nextRefreshToken,
+        refreshExpiresAt: nextRefreshExpiresAt,
+      );
+
+      return nextAccessToken;
+    } on DioException {
+      return null;
+    }
   }
 }
 
