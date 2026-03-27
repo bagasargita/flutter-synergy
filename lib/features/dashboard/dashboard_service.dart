@@ -138,16 +138,12 @@ class DashboardData {
 // ---------------------------------------------------------------------------
 
 class DashboardService {
-  // ignore: unused_field
-  final ApiClient _api; // Will be used with real API endpoints.
+  final ApiClient _api;
 
   DashboardService(this._api);
 
   Future<DashboardData> fetchDashboardData() async {
     try {
-      // --- Mock implementation ---
-      await Future<void>.delayed(const Duration(milliseconds: 800));
-
       final now = DateTime.now();
       const monthNamesShort = [
         'Jan',
@@ -180,6 +176,32 @@ class DashboardService {
       final dateStr =
           '${monthNamesShort[now.month - 1]} ${now.day}, ${now.year}';
       final monthLabelStr = '${monthNamesLong[now.month - 1]} ${now.year}';
+      final monthlySummaryResponse = await _api.get<Map<String, dynamic>>(
+        '/attendances/monthly_summary',
+      );
+      final monthlySummaryBody =
+          monthlySummaryResponse.data ?? <String, dynamic>{};
+      final monthlySummarySuccess = monthlySummaryBody['success'] == true;
+
+      if (!monthlySummarySuccess) {
+        throw ApiException(
+          message: (monthlySummaryBody['message'] ??
+                  'Failed to load monthly attendance summary.')
+              .toString(),
+          statusCode: monthlySummaryResponse.statusCode,
+          data: monthlySummaryBody,
+        );
+      }
+
+      final monthlySummaryData =
+          monthlySummaryBody['data'] as Map<String, dynamic>? ??
+              <String, dynamic>{};
+      final lateness = (monthlySummaryData['lateness'] as num?)?.toInt() ?? 0;
+      final shortOfWorkhours =
+          (monthlySummaryData['short_of_workhours'] as num?)?.toInt() ?? 0;
+      final absences = (monthlySummaryData['absences'] as num?)?.toInt() ?? 0;
+      final works = (monthlySummaryData['works'] as num?)?.toInt() ?? 0;
+      final timesheets = (monthlySummaryData['timesheets'] ?? '00:00').toString();
 
       return DashboardData(
         dailyAttendance: DailyAttendanceInfo(
@@ -191,13 +213,13 @@ class DashboardService {
           primaryAction: 'Check In',
         ),
         monthStats: MonthStats(
-          lateCheckinEarlyCheckout: 0,
-          shortWorkhours: 0,
-          absences: 0,
-          works: 0,
+          lateCheckinEarlyCheckout: lateness,
+          shortWorkhours: shortOfWorkhours,
+          absences: absences,
+          works: works,
           monthLabel: monthLabelStr,
         ),
-        totalTimesheet: TotalTimesheetInfo(totalHours: '28:00'),
+        totalTimesheet: TotalTimesheetInfo(totalHours: timesheets),
         quickActions: [
           QuickAction(
             id: 'attendance',
@@ -248,9 +270,6 @@ class DashboardService {
         ],
       );
 
-      // --- Real implementation ---
-      // final response = await _api.get('/dashboard');
-      // return DashboardData.fromJson(response.data['data']);
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
     }
