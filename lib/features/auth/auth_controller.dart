@@ -41,26 +41,31 @@ class AuthController extends StateNotifier<AuthState> {
   AuthController(this._authService) : super(const AuthState());
 
   Future<void> login({
-    required String email,
+    required String username,
     required String password,
   }) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
 
     try {
       final user = await _authService.login(
-        email: email,
+        username: username,
         password: password,
       );
 
-      // Persist token for future requests.
-      await TokenStorage.saveToken(user.token);
+      // Persist access/refresh tokens with their expiration metadata.
+      await TokenStorage.saveAuthSession(
+        accessToken: user.accessToken,
+        accessExpiresAt: user.accessExpiresAt,
+        refreshToken: user.refreshToken,
+        refreshExpiresAt: user.refreshExpiresAt,
+      );
 
       state = state.copyWith(
         status: AuthStatus.authenticated,
         user: user,
       );
 
-      AppLogger.info('Login successful for ${user.email}');
+      AppLogger.info('Login successful for ${user.username}');
     } catch (e) {
       state = state.copyWith(
         status: AuthStatus.error,

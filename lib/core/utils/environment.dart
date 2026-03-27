@@ -1,3 +1,5 @@
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 /// Describes available app environments.
 enum Env { dev, prod }
 
@@ -18,18 +20,20 @@ class Environment {
   });
 
   /// Development configuration – points to mock / local server.
-  factory Environment.dev() => const Environment(
-        env: Env.dev,
-        baseUrl: 'https://api-dev.example.com',
-        enableLogging: true,
-      );
+  factory Environment.dev() => Environment(
+    env: Env.dev,
+    baseUrl: dotenv.env['BASE_URL_DEV'] ?? dotenv.env['BASE_URL'] ?? 'https://api-dev.example.com',
+    enableLogging: true,
+  );
 
   /// Production configuration.
-  factory Environment.prod() => const Environment(
-        env: Env.prod,
-        baseUrl: 'https://api.example.com',
-        enableLogging: false,
-      );
+  factory Environment.prod() => Environment(
+    env: Env.prod,
+    baseUrl: dotenv.env['BASE_URL_PROD'] ??
+        dotenv.env['BASE_URL'] ??
+        'https://sbs.synergyengineering.com/api_mobile/',
+    enableLogging: false,
+  );
 
   bool get isDev => env == Env.dev;
   bool get isProd => env == Env.prod;

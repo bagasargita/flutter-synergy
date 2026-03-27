@@ -14,13 +14,13 @@ class AuthPage extends ConsumerStatefulWidget {
 
 class _AuthPageState extends ConsumerState<AuthPage> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -28,8 +28,10 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   void _onLogin() {
     if (!_formKey.currentState!.validate()) return;
 
-    ref.read(authControllerProvider.notifier).login(
-          email: _emailController.text.trim(),
+    ref
+        .read(authControllerProvider.notifier)
+        .login(
+          username: _usernameController.text.trim(),
           password: _passwordController.text,
         );
   }
@@ -55,10 +57,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // -- Logo --
-                Image.asset(
-                  'assets/synergy-logo.png',
-                  height: 80,
-                ),
+                Image.asset('assets/synergy-logo.png', height: 80),
                 const SizedBox(height: 6),
                 Text(
                   'Attendance',
@@ -112,9 +111,9 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                         ),
                         const SizedBox(height: 28),
 
-                        // -- Email / Employee ID --
+                        // -- Username / Employee ID --
                         Text(
-                          'Email / Employee ID',
+                          'Username / Employee ID',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                             color: const Color(0xFF1A1A2E),
@@ -122,8 +121,8 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                         ),
                         const SizedBox(height: 8),
                         TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
+                          controller: _usernameController,
+                          keyboardType: TextInputType.text,
                           textInputAction: TextInputAction.next,
                           style: const TextStyle(fontSize: 14),
                           decoration: InputDecoration(
@@ -252,28 +251,6 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                         ),
                         const SizedBox(height: 10),
 
-                        // -- Forgot Password --
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () =>
-                                context.pushNamed('forgotPassword'),
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            child: const Text(
-                              'Forgot Password?',
-                              style: TextStyle(
-                                color: Color(0xFF1A73E8),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ),
-
                         // -- Error Message --
                         if (authState.status == AuthStatus.error &&
                             authState.errorMessage != null)
@@ -285,8 +262,9 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                                 vertical: 10,
                               ),
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.error
-                                    .withValues(alpha: 0.08),
+                                color: theme.colorScheme.error.withValues(
+                                  alpha: 0.08,
+                                ),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Row(
@@ -322,8 +300,9 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                                 : _onLogin,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF1A73E8),
-                              disabledBackgroundColor:
-                                  const Color(0xFF1A73E8).withValues(alpha: 0.6),
+                              disabledBackgroundColor: const Color(
+                                0xFF1A73E8,
+                              ).withValues(alpha: 0.6),
                               foregroundColor: Colors.white,
                               elevation: 0,
                               shape: RoundedRectangleBorder(

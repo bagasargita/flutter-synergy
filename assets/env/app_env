@@ -1,0 +1,3 @@
+BASE_URL=https://sbs.synergyengineering.com/api_mobile/
+BASE_URL_DEV=https://sbs.synergyengineering.com/api_mobile/
+BASE_URL_PROD=https://sbs.synergyengineering.com/api_mobile/

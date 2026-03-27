@@ -35,33 +35,39 @@ void main() {
       const mockUser = AuthUser(
         id: 'usr_001',
         name: 'Test User',
-        email: 'test@example.com',
-        token: 'token_abc',
+        username: 'test@example.com',
+        accessToken: 'token_abc',
+        accessExpiresAt: '2026-03-27T14:26:34.296+07:00',
+        refreshToken: 'refresh_abc',
+        refreshExpiresAt: '2026-04-26T14:11:34.297+07:00',
       );
 
       when(() => mockService.login(
-            email: any(named: 'email'),
+            username: any(named: 'username'),
             password: any(named: 'password'),
           )).thenAnswer((_) async => mockUser);
 
       final states = <AuthState>[];
       controller.addListener(states.add);
 
-      await controller.login(email: 'test@example.com', password: 'pass123');
+      await controller.login(
+        username: 'test@example.com',
+        password: 'pass123',
+      );
 
       // Should have gone through loading -> authenticated.
       expect(states.any((s) => s.status == AuthStatus.loading), isTrue);
       expect(controller.state.status, AuthStatus.authenticated);
-      expect(controller.state.user?.email, 'test@example.com');
+      expect(controller.state.user?.username, 'test@example.com');
     });
 
     test('login sets error state on failure', () async {
       when(() => mockService.login(
-            email: any(named: 'email'),
+            username: any(named: 'username'),
             password: any(named: 'password'),
           )).thenThrow(Exception('Invalid credentials'));
 
-      await controller.login(email: 'bad@email.com', password: 'wrong');
+      await controller.login(username: 'bad@email.com', password: 'wrong');
 
       expect(controller.state.status, AuthStatus.error);
       expect(controller.state.errorMessage, isNotNull);

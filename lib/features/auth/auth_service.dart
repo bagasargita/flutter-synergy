@@ -7,66 +7,90 @@ import 'package:dio/dio.dart';
 class AuthUser {
   final String id;
   final String name;
-  final String email;
-  final String token;
+  final String username;
+  final String accessToken;
+  final String accessExpiresAt;
+  final String refreshToken;
+  final String refreshExpiresAt;
 
   const AuthUser({
     required this.id,
     required this.name,
-    required this.email,
-    required this.token,
+    required this.username,
+    required this.accessToken,
+    required this.accessExpiresAt,
+    required this.refreshToken,
+    required this.refreshExpiresAt,
   });
 
   factory AuthUser.fromJson(Map<String, dynamic> json) {
     return AuthUser(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      email: json['email'] as String,
-      token: json['token'] as String,
+      id: (json['id'] ?? '').toString(),
+      name: (json['name'] ?? '').toString(),
+      username: (json['username'] ?? '').toString(),
+      accessToken: (json['accessToken'] ?? '').toString(),
+      accessExpiresAt: (json['accessExpiresAt'] ?? '').toString(),
+      refreshToken: (json['refreshToken'] ?? '').toString(),
+      refreshExpiresAt: (json['refreshExpiresAt'] ?? '').toString(),
     );
   }
 }
 
 /// Handles authentication-related API calls.
 class AuthService {
-  // ignore: unused_field
-  final ApiClient _api; // Will be used with real API endpoints.
+  final ApiClient _api;
 
   AuthService(this._api);
 
-  /// Performs login. In dev mode this returns mock data after a
-  /// short delay to simulate network latency.
+  /// Performs login against the backend `sign_in` endpoint.
   Future<AuthUser> login({
-    required String email,
+    required String username,
     required String password,
   }) async {
     try {
-      // --- Mock implementation (replace with real endpoint) ---
-      await Future<void>.delayed(const Duration(seconds: 2));
-
-      // Simulate validation
-      if (email.isEmpty || password.isEmpty) {
+      if (username.isEmpty || password.isEmpty) {
         throw const ApiException(message: 'Email and password are required.');
       }
 
-      if (password.length < 6) {
-        throw const ApiException(message: 'Invalid credentials.');
-      }
-
-      // Return mock user
-      return AuthUser(
-        id: 'usr_001',
-        name: 'John Doe',
-        email: email,
-        token: 'mock_jwt_token_abc123',
+      final response = await _api.post<Map<String, dynamic>>(
+        '/sign_in',
+        data: {
+          'username': username,
+          'password': password,
+        },
       );
 
-      // --- Real implementation (uncomment when backend is ready) ---
-      // final response = await _api.post('/auth/login', data: {
-      //   'email': email,
-      //   'password': password,
-      // });
-      // return AuthUser.fromJson(response.data['data']);
+      final body = response.data ?? <String, dynamic>{};
+      final success = body['success'] == true;
+
+      if (!success) {
+        throw ApiException(
+          message: (body['message'] ?? 'Login failed').toString(),
+          statusCode: response.statusCode,
+        );
+      }
+
+      final data = body['data'] as Map<String, dynamic>?;
+      final access = data?['access'] as Map<String, dynamic>?;
+      final refresh = data?['refresh'] as Map<String, dynamic>?;
+      final accessToken = (access?['token'] ?? '').toString();
+      final accessExpiresAt = (access?['expires_at'] ?? '').toString();
+      final refreshToken = (refresh?['token'] ?? '').toString();
+      final refreshExpiresAt = (refresh?['expires_at'] ?? '').toString();
+
+      if (accessToken.isEmpty || refreshToken.isEmpty) {
+        throw const ApiException(message: 'Token data missing in response.');
+      }
+
+      return AuthUser(
+        id: (data?['id'] ?? '').toString(),
+        name: (data?['name'] ?? '').toString(),
+        username: username,
+        accessToken: accessToken,
+        accessExpiresAt: accessExpiresAt,
+        refreshToken: refreshToken,
+        refreshExpiresAt: refreshExpiresAt,
+      );
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
     }

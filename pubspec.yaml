@@ -26,6 +26,7 @@ dependencies:
 
   # Logging
   logger: ^2.6.2
+  flutter_dotenv: ^5.2.1
   flutter_map: ^8.2.2
   latlong2: ^0.9.1
   geolocator: ^14.0.2
@@ -46,3 +47,4 @@ flutter:
 
   assets:
     - assets/
+    - assets/env/app_env

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_synergy/features/auth/auth_page.dart';
-import 'package:flutter_synergy/features/auth/forgot_password_page.dart';
 import 'package:flutter_synergy/features/dashboard/dashboard_page.dart';
 import 'package:flutter_synergy/features/attendance/attendance_page.dart';
 
@@ -11,7 +10,6 @@ class RoutePaths {
   RoutePaths._();
 
   static const String login = '/login';
-  static const String forgotPassword = '/forgot-password';
   static const String dashboard = '/dashboard';
   static const String attendance = '/attendance';
 }
@@ -33,11 +31,6 @@ class AppRouter {
         path: RoutePaths.login,
         name: 'login',
         builder: (context, state) => const AuthPage(),
-      ),
-      GoRoute(
-        path: RoutePaths.forgotPassword,
-        name: 'forgotPassword',
-        builder: (context, state) => const ForgotPasswordPage(),
       ),
       GoRoute(
         path: RoutePaths.dashboard,

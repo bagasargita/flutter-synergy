@@ -155,7 +155,7 @@ class _ProfilePlaceholder extends ConsumerWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                user?.email ?? '',
+                user?.username ?? '',
                 style: const TextStyle(color: Colors.grey),
               ),
               const SizedBox(height: 32),

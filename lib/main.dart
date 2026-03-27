@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_synergy/core/constants/app_constants.dart';
 import 'package:flutter_synergy/core/router/app_router.dart';
@@ -8,13 +9,14 @@ import 'package:flutter_synergy/core/utils/global_error_handler.dart';
 import 'package:flutter_synergy/core/api/api_provider.dart';
 
 Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: 'assets/env/app_env');
+
   // Select environment based on build flavour / compile-time flag.
   // Change to Environment.prod() for production builds.
   final environment = Environment.dev();
 
   GlobalErrorHandler.init(() async {
-    WidgetsFlutterBinding.ensureInitialized();
-
     runApp(
       ProviderScope(
         overrides: [
