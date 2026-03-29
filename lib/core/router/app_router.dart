@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_synergy/features/auth/auth_page.dart';
+import 'package:flutter_synergy/features/auth/auth_controller.dart';
+import 'package:flutter_synergy/features/auth/auth_provider.dart';
 import 'package:flutter_synergy/features/dashboard/dashboard_page.dart';
 import 'package:flutter_synergy/features/attendance/attendance_page.dart';
 
@@ -14,18 +16,31 @@ class RoutePaths {
   static const String attendance = '/attendance';
 }
 
-/// Provider that exposes the [GoRouter] instance to the widget tree.
+/// [GoRouter] that redirects based on [AuthStatus] from [authControllerProvider].
 final routerProvider = Provider<GoRouter>((ref) {
-  return AppRouter.router;
-});
+  final refresh = ValueNotifier<int>(0);
+  ref.listen<AuthState>(authControllerProvider, (previous, next) {
+    refresh.value++;
+  });
+  ref.onDispose(refresh.dispose);
 
-/// Application router configuration using go_router.
-class AppRouter {
-  AppRouter._();
-
-  static final GoRouter router = GoRouter(
+  return GoRouter(
     initialLocation: RoutePaths.login,
     debugLogDiagnostics: true,
+    refreshListenable: refresh,
+    redirect: (context, state) {
+      final status = ref.read(authControllerProvider).status;
+      final isAuthenticated = status == AuthStatus.authenticated;
+      final onLogin = state.matchedLocation == RoutePaths.login;
+
+      if (!isAuthenticated) {
+        if (onLogin) return null;
+        return RoutePaths.login;
+      }
+
+      if (onLogin) return RoutePaths.dashboard;
+      return null;
+    },
     routes: [
       GoRoute(
         path: RoutePaths.login,
@@ -52,4 +67,4 @@ class AppRouter {
       ),
     ),
   );
-}
+});

@@ -21,13 +21,14 @@ void main() {
     SharedPreferences.setMockInitialValues({});
 
     mockService = MockAuthService();
-    controller = AuthController(mockService);
+    controller = AuthController(mockService, restoreFromStorage: false);
   });
 
   group('AuthController', () {
-    test('initial state is AuthStatus.initial', () {
+    test('initial state is AuthStatus.initial when restore disabled', () {
       expect(controller.state.status, AuthStatus.initial);
       expect(controller.state.user, isNull);
+      expect(controller.state.profile, isNull);
       expect(controller.state.errorMessage, isNull);
     });
 
@@ -46,6 +47,18 @@ void main() {
             username: any(named: 'username'),
             password: any(named: 'password'),
           )).thenAnswer((_) async => mockUser);
+
+      const mockProfile = CurrentUserProfile(
+        fullName: 'Mobile Developer',
+        companyName: 'SE',
+        disciplineName: 'IT',
+        titleName: 'IT System Developer',
+        checkInAnywhere: true,
+        workPlaces: [],
+        selfieRequired: true,
+      );
+      when(() => mockService.fetchCurrentUser())
+          .thenAnswer((_) async => mockProfile);
 
       final states = <AuthState>[];
       controller.addListener(states.add);
@@ -80,6 +93,7 @@ void main() {
 
       expect(controller.state.status, AuthStatus.unauthenticated);
       expect(controller.state.user, isNull);
+      expect(controller.state.profile, isNull);
     });
   });
 }

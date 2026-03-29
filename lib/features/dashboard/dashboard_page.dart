@@ -81,7 +81,10 @@ class _HomeTab extends ConsumerWidget {
     final data = dashState.data;
     if (data == null) return const SizedBox.shrink();
 
-    final userName = authState.user?.name ?? 'User';
+    final fullName = authState.profile?.fullName;
+    final userName = (fullName != null && fullName.isNotEmpty)
+        ? fullName
+        : (authState.user?.name ?? 'User');
 
     return RefreshIndicator(
       color: DashboardTheme.accentBlue,
@@ -124,7 +127,12 @@ class _ProfilePlaceholder extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authControllerProvider).user;
+    final authState = ref.watch(authControllerProvider);
+    final user = authState.user;
+    final fullName = authState.profile?.fullName;
+    final displayName = (fullName != null && fullName.isNotEmpty)
+        ? fullName
+        : (user?.name ?? 'User');
 
     return Scaffold(
       backgroundColor: DashboardTheme.bgColor,
@@ -146,7 +154,7 @@ class _ProfilePlaceholder extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                user?.name ?? 'User',
+                displayName,
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,

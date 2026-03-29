@@ -17,7 +17,10 @@ class CalendarTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(calendarControllerProvider);
     final authState = ref.watch(authControllerProvider);
-    final userName = authState.user?.name ?? 'User';
+    final fullName = authState.profile?.fullName;
+    final userName = (fullName != null && fullName.isNotEmpty)
+        ? fullName
+        : (authState.user?.name ?? 'User');
 
     final data = state.data;
 

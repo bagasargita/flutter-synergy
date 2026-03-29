@@ -10,6 +10,8 @@ class TokenStorage {
   static const _accessExpiresAtKey = 'access_expires_at';
   static const _refreshTokenKey = 'refresh_token';
   static const _refreshExpiresAtKey = 'refresh_expires_at';
+  static const _userProfileJsonKey = 'user_profile_json';
+  static const _usernameKey = 'auth_username';
 
   TokenStorage._();
 
@@ -58,6 +60,26 @@ class TokenStorage {
     return prefs.getString(_refreshExpiresAtKey);
   }
 
+  static Future<void> saveUsername(String username) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_usernameKey, username);
+  }
+
+  static Future<String?> getSavedUsername() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_usernameKey);
+  }
+
+  static Future<void> saveUserProfileJson(String json) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userProfileJsonKey, json);
+  }
+
+  static Future<String?> getUserProfileJson() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_userProfileJsonKey);
+  }
+
   static Future<void> clearToken() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
@@ -65,6 +87,8 @@ class TokenStorage {
     await prefs.remove(_accessExpiresAtKey);
     await prefs.remove(_refreshTokenKey);
     await prefs.remove(_refreshExpiresAtKey);
+    await prefs.remove(_userProfileJsonKey);
+    await prefs.remove(_usernameKey);
   }
 
   static Future<bool> hasToken() async {

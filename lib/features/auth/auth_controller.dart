@@ -10,22 +10,26 @@ enum AuthStatus { initial, loading, authenticated, unauthenticated, error }
 class AuthState {
   final AuthStatus status;
   final AuthUser? user;
+  final CurrentUserProfile? profile;
   final String? errorMessage;
 
   const AuthState({
     this.status = AuthStatus.initial,
     this.user,
+    this.profile,
     this.errorMessage,
   });
 
   AuthState copyWith({
     AuthStatus? status,
     AuthUser? user,
+    CurrentUserProfile? profile,
     String? errorMessage,
   }) {
     return AuthState(
       status: status ?? this.status,
       user: user ?? this.user,
+      profile: profile ?? this.profile,
       errorMessage: errorMessage,
     );
   }
@@ -37,8 +41,51 @@ class AuthState {
 /// Easily unit-testable by injecting a mock [AuthService].
 class AuthController extends StateNotifier<AuthState> {
   final AuthService _authService;
+  final bool restoreFromStorage;
 
-  AuthController(this._authService) : super(const AuthState());
+  AuthController(
+    this._authService, {
+    this.restoreFromStorage = true,
+  }) : super(const AuthState()) {
+    if (restoreFromStorage) {
+      restoreSession();
+    }
+  }
+
+  /// Rebuilds [AuthState] from [TokenStorage] after hot restart / process death.
+  Future<void> restoreSession() async {
+    final token = await TokenStorage.getToken();
+    if (token == null || token.isEmpty) {
+      state = const AuthState(status: AuthStatus.unauthenticated);
+      return;
+    }
+
+    final refreshToken = await TokenStorage.getRefreshToken() ?? '';
+    final accessExpiresAt = await TokenStorage.getAccessExpiresAt() ?? '';
+    final refreshExpiresAt = await TokenStorage.getRefreshExpiresAt() ?? '';
+    final username = await TokenStorage.getSavedUsername() ?? '';
+    final profile = CurrentUserProfile.tryParseStorageJson(
+      await TokenStorage.getUserProfileJson(),
+    );
+    final name = (profile?.fullName.isNotEmpty == true)
+        ? profile!.fullName
+        : username;
+
+    state = AuthState(
+      status: AuthStatus.authenticated,
+      user: AuthUser(
+        id: '',
+        name: name,
+        username: username,
+        accessToken: token,
+        accessExpiresAt: accessExpiresAt,
+        refreshToken: refreshToken,
+        refreshExpiresAt: refreshExpiresAt,
+      ),
+      profile: profile,
+    );
+    AppLogger.info('Session restored from storage');
+  }
 
   Future<void> login({
     required String username,
@@ -60,12 +107,29 @@ class AuthController extends StateNotifier<AuthState> {
         refreshExpiresAt: user.refreshExpiresAt,
       );
 
-      state = state.copyWith(
-        status: AuthStatus.authenticated,
-        user: user,
-      );
+      try {
+        final profile = await _authService.fetchCurrentUser();
+        await TokenStorage.saveUserProfileJson(profile.toStorageJsonString());
+        await TokenStorage.saveUsername(user.username);
 
-      AppLogger.info('Login successful for ${user.username}');
+        final displayName =
+            profile.fullName.isNotEmpty ? profile.fullName : user.name;
+
+        state = state.copyWith(
+          status: AuthStatus.authenticated,
+          user: user.copyWith(name: displayName),
+          profile: profile,
+        );
+
+        AppLogger.info('Login successful for ${user.username}');
+      } catch (e) {
+        await TokenStorage.clearToken();
+        state = state.copyWith(
+          status: AuthStatus.error,
+          errorMessage: e.toString(),
+        );
+        AppLogger.error('Failed to load user profile after login', error: e);
+      }
     } catch (e) {
       state = state.copyWith(
         status: AuthStatus.error,
