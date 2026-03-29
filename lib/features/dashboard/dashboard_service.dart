@@ -12,9 +12,13 @@ class DailyAttendanceInfo {
   final String date;
   final String? holidayName;
   final String dayType; // 'PUBLIC_HOLIDAY' | 'WORKING_DAY'
-  final String? checkIn; // e.g. '08:00 AM' or null
+  final String? checkIn; // e.g. '7:30 AM' or null
   final String? checkOut;
-  final String primaryAction; // 'Check In' | 'Check Out'
+  final String primaryAction; // 'Check In' | 'Check Out' | 'Attendance'
+  /// API `attendance` field, e.g. `underhour`.
+  final String? attendanceStatus;
+  /// API `timesheet` duration for the day, e.g. `03:00`.
+  final String? timesheet;
 
   const DailyAttendanceInfo({
     required this.date,
@@ -23,6 +27,8 @@ class DailyAttendanceInfo {
     this.checkIn,
     this.checkOut,
     required this.primaryAction,
+    this.attendanceStatus,
+    this.timesheet,
   });
 }
 
@@ -58,6 +64,8 @@ extension DailyAttendanceCopy on DailyAttendanceInfo {
     String? checkIn,
     String? checkOut,
     String? primaryAction,
+    String? attendanceStatus,
+    String? timesheet,
   }) {
     return DailyAttendanceInfo(
       date: date ?? this.date,
@@ -66,8 +74,93 @@ extension DailyAttendanceCopy on DailyAttendanceInfo {
       checkIn: checkIn ?? this.checkIn,
       checkOut: checkOut ?? this.checkOut,
       primaryAction: primaryAction ?? this.primaryAction,
+      attendanceStatus: attendanceStatus ?? this.attendanceStatus,
+      timesheet: timesheet ?? this.timesheet,
     );
   }
+}
+
+String _formatDashboardDateParam(DateTime local) {
+  final y = local.year.toString().padLeft(4, '0');
+  final m = local.month.toString().padLeft(2, '0');
+  final d = local.day.toString().padLeft(2, '0');
+  return '$y-$m-$d';
+}
+
+String? _formatIsoTimeTo12h(String? iso) {
+  if (iso == null || iso.isEmpty) return null;
+  final parsed = DateTime.tryParse(iso);
+  if (parsed == null) return null;
+  final t = parsed.toLocal();
+  var h = t.hour;
+  final min = t.minute;
+  final period = h >= 12 ? 'PM' : 'AM';
+  h = h % 12;
+  if (h == 0) h = 12;
+  final mm = min.toString().padLeft(2, '0');
+  return '$h:$mm $period';
+}
+
+bool _isHolidayPresent(dynamic holiday) {
+  if (holiday == null) return false;
+  if (holiday is String) return holiday.trim().isNotEmpty;
+  if (holiday is Map) return holiday.isNotEmpty;
+  return true;
+}
+
+String? _holidayLabel(dynamic holiday) {
+  if (holiday == null) return null;
+  if (holiday is String) {
+    final s = holiday.trim();
+    return s.isEmpty ? null : s;
+  }
+  if (holiday is Map) {
+    final m = Map<String, dynamic>.from(holiday);
+    for (final key in ['name', 'title', 'label']) {
+      final v = m[key];
+      if (v != null && v.toString().trim().isNotEmpty) {
+        return v.toString().trim();
+      }
+    }
+  }
+  return null;
+}
+
+String _primaryActionFromDailyPayload(Map<String, dynamic> data) {
+  final checkInRaw = data['check_in']?.toString() ?? '';
+  final checkOutRaw = data['check_out']?.toString() ?? '';
+  final hasIn = checkInRaw.isNotEmpty;
+  final hasOut = checkOutRaw.isNotEmpty;
+  if (!hasIn) return 'Check In';
+  if (!hasOut) return 'Check Out';
+  return 'Attendance';
+}
+
+DailyAttendanceInfo _mapDailyAttendanceToCard({
+  required Map<String, dynamic> data,
+  required String headerDateLabel,
+}) {
+  final holidayRaw = data['holiday'];
+  final isHoliday = _isHolidayPresent(holidayRaw);
+  final holidayName = _holidayLabel(holidayRaw);
+  final attendanceStatus =
+      (data['attendance'] ?? '').toString().trim().isEmpty
+          ? null
+          : data['attendance'].toString();
+  final timesheet = (data['timesheet'] ?? '').toString().trim().isEmpty
+      ? null
+      : data['timesheet'].toString();
+
+  return DailyAttendanceInfo(
+    date: headerDateLabel,
+    holidayName: holidayName,
+    dayType: isHoliday ? 'PUBLIC_HOLIDAY' : 'WORKING_DAY',
+    checkIn: _formatIsoTimeTo12h(data['check_in']?.toString()),
+    checkOut: _formatIsoTimeTo12h(data['check_out']?.toString()),
+    primaryAction: _primaryActionFromDailyPayload(data),
+    attendanceStatus: attendanceStatus,
+    timesheet: timesheet,
+  );
 }
 
 class QuickAction {
@@ -189,15 +282,21 @@ class DashboardService {
       final dateStr =
           '${monthNamesShort[now.month - 1]} ${now.day}, ${now.year}';
       final monthLabelStr = '${monthNamesLong[now.month - 1]} ${now.year}';
+      final dateParam = _formatDashboardDateParam(now);
       final responses = await Future.wait([
         _api.get<Map<String, dynamic>>('/attendances/monthly_summary'),
         _api.get<Map<String, dynamic>>(
           '/articles',
           queryParameters: {'page': 1},
         ),
+        _api.get<Map<String, dynamic>>(
+          '/attendances/daily',
+          queryParameters: {'date': dateParam},
+        ),
       ]);
       final monthlySummaryResponse = responses[0];
       final articlesResponse = responses[1];
+      final dailyAttendanceResponse = responses[2];
       final monthlySummaryBody =
           monthlySummaryResponse.data ?? <String, dynamic>{};
       final monthlySummarySuccess = monthlySummaryBody['success'] == true;
@@ -252,15 +351,24 @@ class DashboardService {
         );
       }
 
+      final dailyBody = dailyAttendanceResponse.data ?? <String, dynamic>{};
+      if (dailyBody['success'] != true) {
+        throw ApiException(
+          message: (dailyBody['message'] ?? 'Failed to load daily attendance.')
+              .toString(),
+          statusCode: dailyAttendanceResponse.statusCode,
+          data: dailyBody,
+        );
+      }
+      final dailyData =
+          dailyBody['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+      final dailyAttendance = _mapDailyAttendanceToCard(
+        data: dailyData,
+        headerDateLabel: dateStr,
+      );
+
       return DashboardData(
-        dailyAttendance: DailyAttendanceInfo(
-          date: dateStr,
-          holidayName: null,
-          dayType: 'WORKING_DAY',
-          checkIn: null,
-          checkOut: null,
-          primaryAction: 'Check In',
-        ),
+        dailyAttendance: dailyAttendance,
         monthStats: MonthStats(
           lateCheckinEarlyCheckout: lateness,
           shortWorkhours: shortOfWorkhours,
