@@ -105,13 +105,26 @@ class Announcement {
   final String title;
   final String date;
   final String? imageAsset;
+  /// Remote banner URL from `/articles` API (`file_url`).
+  final String? fileUrl;
 
   const Announcement({
     required this.id,
     required this.title,
-    required this.date,
+    this.date = '',
     this.imageAsset,
+    this.fileUrl,
   });
+}
+
+/// Fixes URLs like `https://sbs...comhttps://storage...` from the API.
+String? normalizeArticleFileUrl(String? raw) {
+  if (raw == null || raw.isEmpty) return null;
+  const prefix = 'https://sbs.synergyengineering.comhttps://';
+  if (raw.startsWith(prefix)) {
+    return 'https://${raw.substring(prefix.length)}';
+  }
+  return raw;
 }
 
 /// Aggregated response for the dashboard home screen.
@@ -176,9 +189,15 @@ class DashboardService {
       final dateStr =
           '${monthNamesShort[now.month - 1]} ${now.day}, ${now.year}';
       final monthLabelStr = '${monthNamesLong[now.month - 1]} ${now.year}';
-      final monthlySummaryResponse = await _api.get<Map<String, dynamic>>(
-        '/attendances/monthly_summary',
-      );
+      final responses = await Future.wait([
+        _api.get<Map<String, dynamic>>('/attendances/monthly_summary'),
+        _api.get<Map<String, dynamic>>(
+          '/articles',
+          queryParameters: {'page': 1},
+        ),
+      ]);
+      final monthlySummaryResponse = responses[0];
+      final articlesResponse = responses[1];
       final monthlySummaryBody =
           monthlySummaryResponse.data ?? <String, dynamic>{};
       final monthlySummarySuccess = monthlySummaryBody['success'] == true;
@@ -202,6 +221,36 @@ class DashboardService {
       final absences = (monthlySummaryData['absences'] as num?)?.toInt() ?? 0;
       final works = (monthlySummaryData['works'] as num?)?.toInt() ?? 0;
       final timesheets = (monthlySummaryData['timesheets'] ?? '00:00').toString();
+
+      final articlesBody = articlesResponse.data ?? <String, dynamic>{};
+      final articlesSuccess = articlesBody['success'] == true;
+      if (!articlesSuccess) {
+        throw ApiException(
+          message: (articlesBody['message'] ?? 'Failed to load articles.')
+              .toString(),
+          statusCode: articlesResponse.statusCode,
+          data: articlesBody,
+        );
+      }
+      final articlesData =
+          articlesBody['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+      final articlesList = articlesData['articles'] as List<dynamic>? ?? [];
+      final announcements = <Announcement>[];
+      for (var i = 0; i < articlesList.length; i++) {
+        final item = articlesList[i];
+        if (item is! Map<String, dynamic>) continue;
+        final title = (item['title'] ?? '').toString();
+        final fileUrl = normalizeArticleFileUrl(
+          (item['file_url'] ?? '').toString(),
+        );
+        announcements.add(
+          Announcement(
+            id: 'article_$i',
+            title: title,
+            fileUrl: fileUrl,
+          ),
+        );
+      }
 
       return DashboardData(
         dailyAttendance: DailyAttendanceInfo(
@@ -256,18 +305,7 @@ class DashboardService {
             color: Color(0xFF34A853),
           ),
         ],
-        announcements: [
-          Announcement(
-            id: 'ann_1',
-            title: 'Grand Opening Indonesia Region',
-            date: 'Oct 22, 2023',
-          ),
-          Announcement(
-            id: 'ann_2',
-            title: 'Company Annual Town Hall 2024',
-            date: 'Jan 15, 2024',
-          ),
-        ],
+        announcements: announcements,
       );
 
     } on DioException catch (e) {

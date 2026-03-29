@@ -109,59 +109,30 @@ class AnnouncementCard extends StatelessWidget {
               ],
             ),
           ),
-          // Banner / image placeholder – light blue with megaphone style
-          Container(
-            height: 160,
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: const LinearGradient(
-                colors: [Color(0xFF5BA3D0), Color(0xFF7EC8E3)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.campaign_rounded,
-                    size: 48,
-                    color: Colors.white.withValues(alpha: 0.9),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Grand OPENING',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.95),
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'designed by Freepik',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-            child: Text(
-              announcement.date,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade500,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(
+                height: 160,
+                width: double.infinity,
+                child: _announcementBanner(announcement),
               ),
             ),
           ),
+          if (announcement.date.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+              child: Text(
+                announcement.date,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade500,
+                ),
+              ),
+            )
+          else
+            const SizedBox(height: 14),
         ],
       ),
     );
@@ -235,4 +206,62 @@ class _AnnouncementCarouselState extends State<AnnouncementCarousel> {
       ],
     );
   }
+}
+
+Widget _announcementBanner(Announcement announcement) {
+  final url = announcement.fileUrl;
+  if (url != null && url.isNotEmpty) {
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: 160,
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return Center(
+          child: SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: DashboardTheme.accentBlue,
+            ),
+          ),
+        );
+      },
+      errorBuilder: (_, __, ___) => _announcementPlaceholder(),
+    );
+  }
+  final asset = announcement.imageAsset;
+  if (asset != null && asset.isNotEmpty) {
+    return Image.asset(
+      asset,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: 160,
+      errorBuilder: (_, __, ___) => _announcementPlaceholder(),
+    );
+  }
+  return _announcementPlaceholder();
+}
+
+Widget _announcementPlaceholder() {
+  return Container(
+    width: double.infinity,
+    height: 160,
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        colors: [Color(0xFF5BA3D0), Color(0xFF7EC8E3)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+    ),
+    child: Center(
+      child: Icon(
+        Icons.campaign_rounded,
+        size: 48,
+        color: Colors.white70,
+      ),
+    ),
+  );
 }
