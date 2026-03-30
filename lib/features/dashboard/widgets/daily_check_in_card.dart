@@ -169,31 +169,31 @@ class DailyCheckInCard extends StatelessWidget {
                         attendance.timesheet!.isNotEmpty) ||
                     (attendance.attendanceStatus != null &&
                         attendance.attendanceStatus!.isNotEmpty)) ...[
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: [
-                      if (attendance.timesheet != null &&
-                          attendance.timesheet!.isNotEmpty)
-                        _InfoChip(
-                          icon: Icons.schedule_rounded,
-                          label: 'Timesheet',
-                          value: attendance.timesheet!,
-                        ),
-                      if (attendance.attendanceStatus != null &&
-                          attendance.attendanceStatus!.isNotEmpty)
-                        _InfoChip(
-                          icon: Icons.flag_outlined,
-                          label: 'Status',
-                          value: _humanizeAttendanceStatus(
-                            attendance.attendanceStatus!,
-                          ),
-                        ),
-                    ],
-                  ),
+                  const SizedBox(height: 13),
+                  // Wrap(
+                  //   spacing: 8,
+                  //   runSpacing: 6,
+                  //   children: [
+                  //     if (attendance.timesheet != null &&
+                  //         attendance.timesheet!.isNotEmpty)
+                  //       _InfoChip(
+                  //         icon: Icons.schedule_rounded,
+                  //         label: 'Timesheet',
+                  //         value: attendance.timesheet!,
+                  //       ),
+                  //     if (attendance.attendanceStatus != null &&
+                  //         attendance.attendanceStatus!.isNotEmpty)
+                  //       _InfoChip(
+                  //         icon: Icons.flag_outlined,
+                  //         label: 'Status',
+                  //         value: _humanizeAttendanceStatus(
+                  //           attendance.attendanceStatus!,
+                  //         ),
+                  //       ),
+                  //   ],
+                  // ),
                 ],
-                const SizedBox(height: 20),
+                // const SizedBox(height: 20),
                 // Action button
                 SizedBox(
                   width: double.infinity,
