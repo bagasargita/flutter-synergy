@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_synergy/features/dashboard/dashboard_service.dart';
 import 'package:flutter_synergy/features/dashboard/widgets/dashboard_theme.dart';
 
+/// Max height for the banner area so tall infographics scale down but stay fully visible.
+const double _kAnnouncementBannerHeight = 280;
+
+/// Page viewport: header row + banner + bottom padding + card padding.
+const double _kAnnouncementPageHeight = 400;
+
 /// Announcements section with "View All" and carousel-style cards with pagination dots.
 class AnnouncementsSection extends StatelessWidget {
   const AnnouncementsSection({
@@ -113,10 +119,13 @@ class AnnouncementCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: SizedBox(
-                height: 160,
-                width: double.infinity,
-                child: _announcementBanner(announcement),
+              child: ColoredBox(
+                color: Colors.grey.shade100,
+                child: SizedBox(
+                  width: double.infinity,
+                  height: _kAnnouncementBannerHeight,
+                  child: _announcementBanner(announcement),
+                ),
               ),
             ),
           ),
@@ -167,7 +176,7 @@ class _AnnouncementCarouselState extends State<AnnouncementCarousel> {
     return Column(
       children: [
         SizedBox(
-          height: 280,
+          height: _kAnnouncementPageHeight,
           child: PageView.builder(
             controller: _pageController,
             itemCount: widget.announcements.length,
@@ -213,9 +222,10 @@ Widget _announcementBanner(Announcement announcement) {
   if (url != null && url.isNotEmpty) {
     return Image.network(
       url,
-      fit: BoxFit.cover,
+      fit: BoxFit.contain,
+      alignment: Alignment.center,
       width: double.infinity,
-      height: 160,
+      height: _kAnnouncementBannerHeight,
       loadingBuilder: (context, child, progress) {
         if (progress == null) return child;
         return Center(
@@ -236,9 +246,10 @@ Widget _announcementBanner(Announcement announcement) {
   if (asset != null && asset.isNotEmpty) {
     return Image.asset(
       asset,
-      fit: BoxFit.cover,
+      fit: BoxFit.contain,
+      alignment: Alignment.center,
       width: double.infinity,
-      height: 160,
+      height: _kAnnouncementBannerHeight,
       errorBuilder: (_, __, ___) => _announcementPlaceholder(),
     );
   }
@@ -248,7 +259,7 @@ Widget _announcementBanner(Announcement announcement) {
 Widget _announcementPlaceholder() {
   return Container(
     width: double.infinity,
-    height: 160,
+    height: _kAnnouncementBannerHeight,
     decoration: const BoxDecoration(
       gradient: LinearGradient(
         colors: [Color(0xFF5BA3D0), Color(0xFF7EC8E3)],
