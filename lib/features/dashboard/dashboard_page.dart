@@ -98,10 +98,14 @@ class _HomeTab extends ConsumerWidget {
           DailyCheckInCard(
             attendance: data.dailyAttendance,
             onCheckIn: () {
-              context.push(RoutePaths.attendance);
+              context.push(
+                '${RoutePaths.attendance}?mode=check_in',
+              );
             },
             onCheckOut: () {
-              context.push(RoutePaths.attendance);
+              context.push(
+                '${RoutePaths.attendance}?mode=check_out',
+              );
             },
           ),
           const SizedBox(height: 20),

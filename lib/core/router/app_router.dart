@@ -5,6 +5,8 @@ import 'package:flutter_synergy/features/auth/auth_page.dart';
 import 'package:flutter_synergy/features/auth/auth_controller.dart';
 import 'package:flutter_synergy/features/auth/auth_provider.dart';
 import 'package:flutter_synergy/features/dashboard/dashboard_page.dart';
+import 'package:flutter_synergy/features/attendance/attendance_models.dart';
+import 'package:flutter_synergy/core/widgets/root_navigator_key.dart';
 import 'package:flutter_synergy/features/attendance/attendance_page.dart';
 
 /// Named route paths used throughout the app.
@@ -25,6 +27,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.onDispose(refresh.dispose);
 
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: RoutePaths.login,
     debugLogDiagnostics: true,
     refreshListenable: refresh,
@@ -55,7 +58,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RoutePaths.attendance,
         name: 'attendance',
-        builder: (context, state) => const AttendancePage(),
+        builder: (context, state) {
+          final mode = state.uri.queryParameters['mode'] ?? 'check_in';
+          final kind = mode == 'check_out'
+              ? AttendanceSubmitKind.checkOut
+              : AttendanceSubmitKind.checkIn;
+          return AttendancePage(kind: kind);
+        },
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

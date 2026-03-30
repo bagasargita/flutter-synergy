@@ -7,6 +7,7 @@ import 'package:flutter_synergy/core/theme/app_theme.dart';
 import 'package:flutter_synergy/core/utils/environment.dart';
 import 'package:flutter_synergy/core/utils/global_error_handler.dart';
 import 'package:flutter_synergy/core/api/api_provider.dart';
+import 'package:flutter_synergy/core/widgets/root_scaffold_messenger_key.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +40,7 @@ class FlutterSynergyApp extends ConsumerWidget {
     return MaterialApp.router(
       title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
+      scaffoldMessengerKey: globalScaffoldMessengerKey,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
