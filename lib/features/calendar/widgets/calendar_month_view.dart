@@ -7,10 +7,16 @@ class CalendarMonthView extends StatelessWidget {
     super.key,
     required this.data,
     required this.onDaySelected,
+    this.onPreviousMonth,
+    this.onNextMonth,
+    this.isLoadingMonth = false,
   });
 
   final CalendarMonthData data;
   final ValueChanged<CalendarDayInfo> onDaySelected;
+  final VoidCallback? onPreviousMonth;
+  final VoidCallback? onNextMonth;
+  final bool isLoadingMonth;
 
   @override
   Widget build(BuildContext context) {
@@ -34,26 +40,52 @@ class CalendarMonthView extends StatelessWidget {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Icon(Icons.chevron_left_rounded, color: Colors.grey),
-                Text(
-                  data.monthLabel,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: DashboardTheme.darkText,
+                IconButton(
+                  onPressed: isLoadingMonth
+                      ? null
+                      : (onPreviousMonth != null
+                          ? () => onPreviousMonth!()
+                          : null),
+                  icon: Icon(
+                    Icons.chevron_left_rounded,
+                    color: isLoadingMonth
+                        ? Colors.grey.shade300
+                        : Colors.grey.shade600,
+                  ),
+                  tooltip: 'Previous month',
+                ),
+                Expanded(
+                  child: Text(
+                    data.monthLabel,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: DashboardTheme.darkText,
+                    ),
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+                IconButton(
+                  onPressed: isLoadingMonth
+                      ? null
+                      : (onNextMonth != null ? () => onNextMonth!() : null),
+                  icon: Icon(
+                    Icons.chevron_right_rounded,
+                    color: isLoadingMonth
+                        ? Colors.grey.shade300
+                        : Colors.grey.shade600,
+                  ),
+                  tooltip: 'Next month',
+                ),
               ],
             ),
           ),
           const Divider(height: 1),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            padding: const EdgeInsets.fromLTRB(20, 6, 20, 4),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: const [
@@ -67,15 +99,16 @@ class CalendarMonthView extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 4),
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
             child: GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 7,
-                mainAxisSpacing: 4,
+                // Fixed row height avoids default square cells (extra gap under SUN–SAT).
+                mainAxisExtent: 50,
+                mainAxisSpacing: 2,
                 crossAxisSpacing: 4,
               ),
               itemCount: totalCells,
@@ -85,7 +118,11 @@ class CalendarMonthView extends StatelessWidget {
                 }
                 final dayIndex = index - leadingEmpty;
                 final day = data.days[dayIndex];
-                return _DayCell(day: day, onTap: () => onDaySelected(day));
+                return _DayCell(
+                  day: day,
+                  legends: data.legends,
+                  onTap: () => onDaySelected(day),
+                );
               },
             ),
           ),
@@ -114,10 +151,23 @@ class _WeekdayLabel extends StatelessWidget {
 }
 
 class _DayCell extends StatelessWidget {
-  const _DayCell({required this.day, required this.onTap});
+  const _DayCell({
+    required this.day,
+    required this.legends,
+    required this.onTap,
+  });
 
   final CalendarDayInfo day;
+  final List<CalendarLegendItem> legends;
   final VoidCallback onTap;
+
+  CalendarLegendItem? _legendForKey(String? key) {
+    if (key == null) return null;
+    for (final e in legends) {
+      if (e.key == key) return e;
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -132,20 +182,21 @@ class _DayCell extends StatelessWidget {
         : Colors.transparent;
     final Color textColor = isSelected ? Colors.white : DashboardTheme.darkText;
 
-    final legendColor = _legendColorForKey(day.legendKey);
+    final legend = _legendForKey(day.legendKey);
 
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(24),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 30,
+            height: 30,
             decoration: BoxDecoration(
               color: bgColor,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(15),
               border: Border.all(color: borderColor, width: 1.5),
             ),
             alignment: Alignment.center,
@@ -158,36 +209,66 @@ class _DayCell extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 4),
-          if (legendColor != null)
-            Container(
-              width: 4,
-              height: 4,
-              decoration: BoxDecoration(
-                color: legendColor,
-                shape: BoxShape.circle,
-              ),
+          const SizedBox(height: 2),
+          if (legend != null)
+            _LegendMark(
+              color: legend.dotColor,
+              symbol: legend.symbol ?? 'circle',
             ),
         ],
       ),
     );
   }
+}
 
-  Color? _legendColorForKey(String? key) {
-    switch (key) {
-      case 'today':
-        return const Color(0xFF1A73E8);
-      case 'late_checkin':
-        return const Color(0xFFF4B400);
-      case 'leave':
-        return const Color(0xFF34A853);
-      case 'public_holiday':
-        return const Color(0xFFEA4335);
-      case 'absence':
-        return const Color(0xFF9E9E9E);
-      case 'trip':
-        return const Color(0xFF5C6BC0);
+class _LegendMark extends StatelessWidget {
+  const _LegendMark({required this.color, required this.symbol});
+
+  final Color color;
+  final String symbol;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = symbol.toLowerCase();
+    if (s == 'triangle') {
+      return CustomPaint(
+        size: const Size(8, 6),
+        painter: _TrianglePainter(color),
+      );
     }
-    return null;
+    if (s == 'square') {
+      return Container(
+        width: 6,
+        height: 6,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(1),
+        ),
+      );
+    }
+    return Container(
+      width: 6,
+      height: 6,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    );
   }
+}
+
+class _TrianglePainter extends CustomPainter {
+  _TrianglePainter(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(size.width / 2, 0)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(path, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

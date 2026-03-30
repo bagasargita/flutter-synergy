@@ -5,23 +5,67 @@ import 'package:flutter_synergy/features/calendar/calendar_models.dart';
 import 'package:flutter_synergy/features/dashboard/dashboard_service.dart';
 import 'package:dio/dio.dart';
 
-/// Service responsible for providing calendar data.
-///
-/// Currently returns mock data for the current month, but is wired
-/// with [ApiClient] so it can be hooked to a real backend later.
 class CalendarService {
-  // ignore: unused_field
   final ApiClient _api;
 
   CalendarService(this._api);
 
   Future<CalendarMonthData> fetchCurrentMonth() async {
-    try {
-      await Future<void>.delayed(const Duration(milliseconds: 600));
+    final now = DateTime.now();
+    return fetchMonth(year: now.year, month: now.month, today: now);
+  }
 
-      final now = DateTime.now();
-      final year = now.year;
-      final month = now.month;
+  Future<CalendarMonthData> fetchMonth({
+    required int year,
+    required int month,
+    DateTime? today,
+  }) async {
+    try {
+      final todayResolved = today ?? DateTime.now();
+      final startDate = _ymd(DateTime(year, month, 1));
+
+      final responses = await Future.wait([
+        _api.get<Map<String, dynamic>>(
+          '/attendances/monthly',
+          queryParameters: {'start_date': startDate},
+        ),
+        _api.get<Map<String, dynamic>>('/calendar_legends'),
+      ]);
+
+      final monthlyRes = responses[0];
+      final legendsRes = responses[1];
+
+      final monthlyBody = monthlyRes.data ?? <String, dynamic>{};
+      if (monthlyBody['success'] != true) {
+        throw ApiException(
+          message: (monthlyBody['message'] ?? 'Failed to load monthly attendance.')
+              .toString(),
+          statusCode: monthlyRes.statusCode,
+          data: monthlyBody,
+        );
+      }
+
+      final legendsBody = legendsRes.data ?? <String, dynamic>{};
+      if (legendsBody['success'] != true) {
+        throw ApiException(
+          message: (legendsBody['message'] ?? 'Failed to load calendar legends.')
+              .toString(),
+          statusCode: legendsRes.statusCode,
+          data: legendsBody,
+        );
+      }
+
+      final legends = _parseLegends(legendsBody['data'] as List<dynamic>? ?? []);
+      final rows = monthlyBody['data'] as List<dynamic>? ?? [];
+      final byDate = <String, Map<String, dynamic>>{};
+      for (final e in rows) {
+        if (e is Map<String, dynamic>) {
+          byDate[(e['date'] ?? '').toString()] = e;
+        } else if (e is Map) {
+          final m = Map<String, dynamic>.from(e);
+          byDate[(m['date'] ?? '').toString()] = m;
+        }
+      }
 
       const monthNamesLong = [
         'January',
@@ -37,81 +81,49 @@ class CalendarService {
         'November',
         'December',
       ];
-
       final monthLabel = '${monthNamesLong[month - 1]} $year';
-
-      // Generate all days in current month.
       final daysInMonth = DateUtils.getDaysInMonth(year, month);
-      final List<CalendarDayInfo> days = List.generate(daysInMonth, (index) {
-        final date = DateTime(year, month, index + 1);
-        final isToday =
-            date.year == now.year &&
-            date.month == now.month &&
-            date.day == now.day;
 
-        // Simple mock: 22nd is a public holiday, others working days.
-        final bool isHoliday = date.day == 22;
+      final days = <CalendarDayInfo>[];
+      for (var d = 1; d <= daysInMonth; d++) {
+        final date = DateTime(year, month, d);
+        final key = _ymd(date);
+        final row = byDate[key] ?? <String, dynamic>{};
+        final isToday = _isSameDate(date, todayResolved);
 
-        return CalendarDayInfo(
-          date: date,
-          isToday: isToday,
-          isSelected: isToday,
-          dayType: isHoliday ? 'PUBLIC_HOLIDAY' : 'WORKING_DAY',
-          holidayName: isHoliday ? 'Tahun Baru Imlek 2577' : null,
-          legendKey: isHoliday
-              ? 'public_holiday'
-              : isToday
-              ? 'today'
-              : null,
+        final holidayRaw = row['holiday'];
+        final holidayStr = holidayRaw?.toString().trim();
+        final hasHoliday = holidayStr != null && holidayStr.isNotEmpty;
+
+        days.add(
+          CalendarDayInfo(
+            date: date,
+            isToday: isToday,
+            isSelected: false,
+            dayType: hasHoliday ? 'PUBLIC_HOLIDAY' : 'WORKING_DAY',
+            holidayName: hasHoliday ? holidayStr : null,
+            legendKey: _resolveLegendKey(
+              isToday: isToday,
+              row: row,
+            ),
+            attendanceRow: row.isEmpty ? null : row,
+          ),
         );
-      });
+      }
 
-      final selectedDay = days.firstWhere(
-        (d) => d.isSelected,
-        orElse: () => days.first,
-      );
-
-      final dayAttendance = buildAttendanceForDay(selectedDay);
-
-      final legends = <CalendarLegendItem>[
-        const CalendarLegendItem(
-          key: 'today',
-          label: 'Today',
-          dotColor: Color(0xFF1A73E8),
-        ),
-        const CalendarLegendItem(
-          key: 'late_checkin',
-          label: 'Late Check-in',
-          dotColor: Color(0xFFF4B400),
-        ),
-        const CalendarLegendItem(
-          key: 'leave',
-          label: 'Leave',
-          dotColor: Color(0xFF34A853),
-        ),
-        const CalendarLegendItem(
-          key: 'public_holiday',
-          label: 'Public Holiday',
-          dotColor: Color(0xFFEA4335),
-        ),
-        const CalendarLegendItem(
-          key: 'absence',
-          label: 'Absence',
-          dotColor: Color(0xFF9E9E9E),
-        ),
-        const CalendarLegendItem(
-          key: 'trip',
-          label: 'Trip Arrangement',
-          dotColor: Color(0xFF5C6BC0),
-        ),
-      ];
+      final selectedIndex = days.indexWhere((e) => e.isToday);
+      final idx = selectedIndex >= 0 ? selectedIndex : 0;
+      for (var i = 0; i < days.length; i++) {
+        days[i] = days[i].copyWith(isSelected: i == idx);
+      }
+      final selectedDay = days[idx];
 
       return CalendarMonthData(
         monthLabel: monthLabel,
         days: days,
         selectedDay: selectedDay,
-        dayAttendance: dayAttendance,
-        timesheetHours: '08:00 hrs',
+        dayAttendance: buildAttendanceForDay(selectedDay),
+        timesheetHours: _timesheetLabel(selectedDay.attendanceRow),
         legends: legends,
       );
     } on DioException catch (e) {
@@ -119,30 +131,182 @@ class CalendarService {
     }
   }
 
-  /// Builds a simple [DailyAttendanceInfo] for the given day.
+  List<CalendarLegendItem> _parseLegends(List<dynamic> raw) {
+    final out = <CalendarLegendItem>[];
+    for (final e in raw) {
+      if (e is! Map) continue;
+      final m = Map<String, dynamic>.from(e);
+      final name = (m['name'] ?? '').toString();
+      final label = (m['label'] ?? name).toString();
+      final status = m['status']?.toString();
+      final colorHex = (m['color'] ?? '#888888').toString();
+      final symbol = m['symbol']?.toString();
+      final key = (status == null || status.isEmpty)
+          ? name
+          : '$name|$status';
+      if (name.isEmpty) continue;
+      out.add(
+        CalendarLegendItem(
+          key: key,
+          label: label,
+          dotColor: _parseHexColor(colorHex),
+          symbol: symbol,
+        ),
+      );
+    }
+    return out;
+  }
+
+  Color _parseHexColor(String hex) {
+    var h = hex.trim().replaceFirst('#', '');
+    if (h.length == 6) {
+      h = 'FF$h';
+    }
+    final v = int.tryParse(h, radix: 16);
+    if (v == null) return const Color(0xFF888888);
+    return Color(v);
+  }
+
+  String _ymd(DateTime d) {
+    final y = d.year.toString().padLeft(4, '0');
+    final m = d.month.toString().padLeft(2, '0');
+    final day = d.day.toString().padLeft(2, '0');
+    return '$y-$m-$day';
+  }
+
+  bool _isSameDate(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  bool _isEmptyNested(dynamic v) {
+    if (v == null) return true;
+    if (v is String) return v.trim().isEmpty;
+    if (v is Map) return v.isEmpty;
+    return false;
+  }
+
+  String? _nestedStatus(dynamic v) {
+    if (_isEmptyNested(v)) return null;
+    if (v is Map) {
+      final s = v['status'] ?? v['state'];
+      if (s != null && s.toString().trim().isNotEmpty) {
+        return s.toString().toLowerCase();
+      }
+      return 'approved';
+    }
+    if (v is String && v.trim().isNotEmpty) {
+      return v.trim().toLowerCase();
+    }
+    return 'approved';
+  }
+
+  /// First matching legend category wins (single dot per cell).
+  String? _resolveLegendKey({
+    required bool isToday,
+    required Map<String, dynamic> row,
+  }) {
+    final trip = row['trip'];
+    final leave = row['leave'];
+    final overtime = row['overtime'];
+    final holiday = row['holiday'];
+    final attendance = row['attendance']?.toString().toLowerCase();
+
+    if (!_isEmptyNested(trip)) {
+      final tripSt = _nestedStatus(trip) ?? 'approved';
+      return 'trip|$tripSt';
+    }
+    if (!_isEmptyNested(leave)) {
+      final leaveSt = _nestedStatus(leave) ?? 'approved';
+      return 'leave|$leaveSt';
+    }
+    if (!_isEmptyNested(overtime)) {
+      final otSt = _nestedStatus(overtime) ?? 'approved';
+      return 'overtime|$otSt';
+    }
+
+    final holStr = holiday?.toString().trim();
+    if (holStr != null && holStr.isNotEmpty) {
+      return 'holiday';
+    }
+
+    if (attendance != null && attendance.isNotEmpty) {
+      if (attendance == 'late') return 'attendance|late';
+      if (attendance == 'underhour') return 'attendance|underhour';
+      if (attendance == 'absence') return 'attendance|absence';
+    }
+
+    if (isToday) return 'today';
+    return null;
+  }
+
+  String? _formatIsoTimeTo12h(String? iso) {
+    if (iso == null || iso.isEmpty) return null;
+    final parsed = DateTime.tryParse(iso);
+    if (parsed == null) return null;
+    final t = parsed.toLocal();
+    var h = t.hour;
+    final min = t.minute;
+    final period = h >= 12 ? 'PM' : 'AM';
+    h = h % 12;
+    if (h == 0) h = 12;
+    final mm = min.toString().padLeft(2, '0');
+    return '$h:$mm $period';
+  }
+
+  String _primaryActionFromRow(Map<String, dynamic> data) {
+    final checkInRaw = data['check_in']?.toString() ?? '';
+    final checkOutRaw = data['check_out']?.toString() ?? '';
+    final hasIn = checkInRaw.isNotEmpty;
+    final hasOut = checkOutRaw.isNotEmpty;
+    if (!hasIn) return 'Check In';
+    if (!hasOut) return 'Check Out';
+    return 'Attendance';
+  }
+
+  String _timesheetLabel(Map<String, dynamic>? row) {
+    if (row == null) return '-';
+    final t = row['timesheet']?.toString();
+    if (t == null || t.isEmpty) return '-';
+    return t;
+  }
+
+  /// Timesheet column for the day summary card.
+  String timesheetDisplayFor(CalendarDayInfo day) =>
+      _timesheetLabel(day.attendanceRow);
+
+  /// Builds [DailyAttendanceInfo] for the selected calendar day.
   DailyAttendanceInfo buildAttendanceForDay(CalendarDayInfo day) {
     final dateLabel =
         '${_formatMonthShort(day.date.month)} ${day.date.day}, ${day.date.year}';
-
-    if (day.dayType == 'PUBLIC_HOLIDAY') {
+    final row = day.attendanceRow;
+    if (row == null || row.isEmpty) {
       return DailyAttendanceInfo(
         date: dateLabel,
         holidayName: day.holidayName,
-        dayType: 'PUBLIC_HOLIDAY',
+        dayType: day.dayType,
         checkIn: null,
         checkOut: null,
         primaryAction: 'Check In',
       );
     }
 
-    return const DailyAttendanceInfo(
-      date: '',
-      holidayName: null,
-      dayType: 'WORKING_DAY',
-      checkIn: '08:00 AM',
-      checkOut: '05:00 PM',
-      primaryAction: 'Check Out',
-    ).copyWith(date: dateLabel);
+    final holidayStr = row['holiday']?.toString().trim();
+    final hasHoliday = holidayStr != null && holidayStr.isNotEmpty;
+
+    return DailyAttendanceInfo(
+      date: dateLabel,
+      holidayName: hasHoliday ? holidayStr : null,
+      dayType: hasHoliday ? 'PUBLIC_HOLIDAY' : 'WORKING_DAY',
+      checkIn: _formatIsoTimeTo12h(row['check_in']?.toString()),
+      checkOut: _formatIsoTimeTo12h(row['check_out']?.toString()),
+      primaryAction: _primaryActionFromRow(row),
+      attendanceStatus: (row['attendance'] ?? '').toString().trim().isEmpty
+          ? null
+          : row['attendance'].toString(),
+      timesheet: (row['timesheet'] ?? '').toString().trim().isEmpty
+          ? null
+          : row['timesheet'].toString(),
+    );
   }
 
   String _formatMonthShort(int month) {
