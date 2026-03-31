@@ -1,15 +1,36 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:http_parser/http_parser.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter_synergy/core/api/api_client.dart';
 import 'package:flutter_synergy/core/api/api_exception.dart';
 import 'package:flutter_synergy/core/utils/device_context.dart';
+import 'package:flutter_synergy/core/utils/form_data_logger.dart';
 import 'package:flutter_synergy/features/attendance/attendance_models.dart';
 
 String _fileName(String filePath) {
   final norm = filePath.replaceAll(r'\', '/');
   final i = norm.lastIndexOf('/');
   return i < 0 ? norm : norm.substring(i + 1);
+}
+
+/// Encodes camera JPEG to WebP for API `attachment` (matches Postman `sample1.webp`).
+Future<File> _jpegToWebpTemp(String jpegPath) async {
+  final dir = await getTemporaryDirectory();
+  final outPath =
+      '${dir.path}/face_capture_${DateTime.now().millisecondsSinceEpoch}.webp';
+  final result = await FlutterImageCompress.compressAndGetFile(
+    jpegPath,
+    outPath,
+    format: CompressFormat.webp,
+    quality: 85,
+  );
+  if (result == null) {
+    throw const ApiException(message: 'Could not encode photo as WebP.');
+  }
+  return File(result.path);
 }
 
 /// Multipart check-in / check-out per `api_mobile` form-data contract.
@@ -24,8 +45,7 @@ class AttendanceService {
     final offset = t.timeZoneOffset;
     final sign = offset.isNegative ? '-' : '+';
     final oh = offset.inHours.abs().toString().padLeft(2, '0');
-    final om =
-        (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
+    final om = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
     String two(int n) => n.toString().padLeft(2, '0');
     return '${t.year}-${two(t.month)}-${two(t.day)}'
         'T${two(t.hour)}:${two(t.minute)}:${two(t.second)}'
@@ -48,21 +68,28 @@ class AttendanceService {
       throw const ApiException(message: 'Photo file not found.');
     }
 
-    final form = FormData.fromMap({
-      'remark': kind.remark,
-      'lat': lat.toString(),
-      'lon': lon.toString(),
-      kind.timeFieldName: formatCheckTimestamp(timestamp),
-      'device_info[device_id]': deviceId,
-      // API spelling (single "s"): matches Postman / backend.
-      'device_info[ip_addres]': ip.isEmpty ? '0.0.0.0' : ip,
-      'attachment': await MultipartFile.fromFile(
-        attachmentPath,
-        filename: _fileName(attachmentPath),
-      ),
-    });
-
+    File? webpFile;
     try {
+      webpFile = await _jpegToWebpTemp(attachmentPath);
+      final webpName = _fileName(webpFile.path);
+
+      final form = FormData.fromMap({
+        'remark': kind.remark,
+        'lat': lat.toString(),
+        'lon': lon.toString(),
+        kind.timeFieldName: formatCheckTimestamp(timestamp),
+        'device_info[device_id]': deviceId,
+        // API spelling (single "s"): matches Postman / backend.
+        'device_info[ip_addres]': ip.isEmpty ? '0.0.0.0' : ip,
+        'attachment': await MultipartFile.fromFile(
+          webpFile.path,
+          filename: webpName,
+          contentType: MediaType('image', 'webp'),
+        ),
+      });
+
+      logFormData(form, label: 'POST ${kind.path}');
+
       final response = await _api.dio.post<Map<String, dynamic>>(
         kind.path,
         data: form,
@@ -70,14 +97,20 @@ class AttendanceService {
       final body = response.data ?? <String, dynamic>{};
       if (body['success'] != true) {
         throw ApiException(
-          message:
-              (body['message'] ?? 'Attendance submission failed').toString(),
+          message: (body['message'] ?? 'Attendance submission failed')
+              .toString(),
           statusCode: response.statusCode,
           data: body,
         );
       }
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
+    } finally {
+      try {
+        if (webpFile != null && await webpFile.exists()) {
+          await webpFile.delete();
+        }
+      } catch (_) {}
     }
   }
 }

@@ -61,7 +61,10 @@ class GlobalBottomNav extends StatelessWidget {
                   fontSize: _fontSize,
                   verticalPadding: _verticalPadding,
                   spacing: _spacing,
-                  onTap: () => onTap(index),
+                  onTap: () {
+                    onTap(index);
+                    item.onSelected?.call();
+                  },
                 );
               }),
             ),
@@ -78,10 +81,12 @@ class GlobalBottomNavItem {
   const GlobalBottomNavItem({
     required this.label,
     required this.icon,
+    this.onSelected,
   });
 
   final String label;
   final IconData icon;
+  final VoidCallback? onSelected;
 }
 
 class _GlobalNavItem extends StatelessWidget {

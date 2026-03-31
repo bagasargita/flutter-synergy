@@ -11,6 +11,7 @@ import 'package:flutter_synergy/features/dashboard/widgets/dashboard_header.dart
 import 'package:flutter_synergy/features/dashboard/widgets/dashboard_theme.dart';
 import 'package:flutter_synergy/features/dashboard/widgets/daily_check_in_card.dart';
 import 'package:flutter_synergy/features/dashboard/widgets/this_month_section.dart';
+import 'package:flutter_synergy/features/calendar/calendar_provider.dart';
 import 'package:flutter_synergy/features/calendar/calendar_page.dart';
 
 // ---------------------------------------------------------------------------
@@ -36,11 +37,18 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         children: const [_HomeTab(), CalendarTab(), _ProfilePlaceholder()],
       ),
       bottomNavigationBar: GlobalBottomNav(
-        items: const [
-          GlobalBottomNavItem(label: 'HOME', icon: Icons.home_rounded),
+        items: [
+          GlobalBottomNavItem(
+            label: 'HOME',
+            icon: Icons.home_rounded,
+            onSelected: () =>
+                ref.read(dashboardControllerProvider.notifier).refresh(),
+          ),
           GlobalBottomNavItem(
             label: 'CALENDAR',
             icon: Icons.calendar_today_outlined,
+            onSelected: () =>
+                ref.read(calendarControllerProvider.notifier).refresh(),
           ),
           GlobalBottomNavItem(
             label: 'PROFILE',
