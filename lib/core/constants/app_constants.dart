@@ -17,6 +17,6 @@ class AppConstants {
   static const double defaultRadius = 12.0;
 
   // -- App Info --
-  static const String appName = 'Flutter Synergy';
+  static const String appName = 'Synergy Attendance';
   static const String appVersion = '1.0.0';
 }

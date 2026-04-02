@@ -7,7 +7,7 @@
     <!-- Optional: background location if needed in future -->
     <!-- <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" /> -->
     <application
-        android:label="flutter_synergy"
+        android:label="Synergy Attendance"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

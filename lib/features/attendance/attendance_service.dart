@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -7,7 +6,6 @@ import 'package:http_parser/http_parser.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_synergy/core/api/api_client.dart';
 import 'package:flutter_synergy/core/api/api_exception.dart';
-import 'package:flutter_synergy/core/security/security_report.dart';
 import 'package:flutter_synergy/core/security/security_service.dart';
 import 'package:flutter_synergy/core/utils/device_context.dart';
 import 'package:flutter_synergy/core/utils/form_data_logger.dart';
