@@ -5,6 +5,7 @@ import 'package:flutter_synergy/features/auth/auth_page.dart';
 import 'package:flutter_synergy/features/auth/auth_controller.dart';
 import 'package:flutter_synergy/features/auth/auth_provider.dart';
 import 'package:flutter_synergy/features/dashboard/dashboard_page.dart';
+import 'package:flutter_synergy/features/dashboard/announcements_list_page.dart';
 import 'package:flutter_synergy/features/dashboard/dashboard_provider.dart';
 import 'package:flutter_synergy/features/calendar/calendar_provider.dart';
 import 'package:flutter_synergy/features/attendance/attendance_models.dart';
@@ -18,6 +19,7 @@ class RoutePaths {
   static const String login = '/login';
   static const String dashboard = '/dashboard';
   static const String attendance = '/attendance';
+  static const String announcements = '/announcements';
 }
 
 /// [GoRouter] that redirects based on [AuthStatus] from [authControllerProvider].
@@ -77,6 +79,11 @@ final routerProvider = Provider<GoRouter>((ref) {
               : AttendanceSubmitKind.checkIn;
           return AttendancePage(kind: kind);
         },
+      ),
+      GoRoute(
+        path: RoutePaths.announcements,
+        name: 'announcements',
+        builder: (context, state) => const AnnouncementsListPage(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

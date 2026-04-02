@@ -126,9 +126,7 @@ class _HomeTab extends ConsumerWidget {
           const SizedBox(height: 20),
           AnnouncementsSection(
             announcements: data.announcements,
-            onViewAll: () {
-              // TODO: Navigate to full announcements list
-            },
+            onViewAll: () => context.push(RoutePaths.announcements),
           ),
         ],
       ),

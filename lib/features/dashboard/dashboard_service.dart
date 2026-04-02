@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_synergy/core/api/api_client.dart';
 import 'package:flutter_synergy/core/api/api_exception.dart';
+import 'package:flutter_synergy/core/constants/app_constants.dart';
 import 'package:dio/dio.dart';
 
 // ---------------------------------------------------------------------------
@@ -224,6 +225,17 @@ class Announcement {
   });
 }
 
+/// One page from `GET /articles?page=`.
+class ArticlesPageResult {
+  const ArticlesPageResult({
+    required this.items,
+    required this.hasMore,
+  });
+
+  final List<Announcement> items;
+  final bool hasMore;
+}
+
 /// Fixes URLs like `https://sbs...comhttps://storage...` from the API.
 String? normalizeArticleFileUrl(String? raw) {
   if (raw == null || raw.isEmpty) return null;
@@ -232,6 +244,80 @@ String? normalizeArticleFileUrl(String? raw) {
     return 'https://${raw.substring(prefix.length)}';
   }
   return raw;
+}
+
+List<Announcement> _announcementsFromArticlesJson(
+  List<dynamic>? rawList,
+  int page,
+) {
+  final articlesList = rawList ?? [];
+  final out = <Announcement>[];
+  for (var i = 0; i < articlesList.length; i++) {
+    final item = articlesList[i];
+    Map<String, dynamic>? m;
+    if (item is Map<String, dynamic>) {
+      m = item;
+    } else if (item is Map) {
+      m = Map<String, dynamic>.from(item);
+    }
+    if (m == null) continue;
+    final title = (m['title'] ?? '').toString();
+    final fileUrl = normalizeArticleFileUrl((m['file_url'] ?? '').toString());
+    final idRaw = m['id'];
+    final id = idRaw != null ? idRaw.toString() : 'p${page}_$i';
+    var date = '';
+    for (final k in ['published_at', 'created_at', 'date']) {
+      final v = m[k]?.toString();
+      if (v != null && v.trim().isNotEmpty) {
+        date = v.trim();
+        break;
+      }
+    }
+    out.add(
+      Announcement(
+        id: id,
+        title: title,
+        date: date,
+        fileUrl: fileUrl,
+      ),
+    );
+  }
+  return out;
+}
+
+bool _articlesDataHasMore(Map<String, dynamic> data, int itemCount) {
+  if (itemCount <= 0) return false;
+  dynamic cur = data['current_page'];
+  dynamic last = data['last_page'];
+  if (cur == null || last == null) {
+    final meta = data['meta'];
+    if (meta is Map) {
+      final mm = Map<String, dynamic>.from(meta);
+      cur ??= mm['current_page'];
+      last ??= mm['last_page'];
+    }
+  }
+  if (cur is num && last is num) {
+    return cur.toInt() < last.toInt();
+  }
+  final nextUrl = data['next_page_url'];
+  if (nextUrl != null) {
+    final s = nextUrl.toString();
+    if (s.isNotEmpty && s != 'null') return true;
+  }
+  final links = data['links'];
+  if (links is Map) {
+    final next = links['next'];
+    if (next != null) {
+      final s = next.toString();
+      if (s.isNotEmpty && s != 'null') return true;
+    }
+  }
+  final perPage = data['per_page'];
+  final limit = perPage is num && perPage > 0
+      ? perPage.toInt()
+      : AppConstants.defaultPageSize;
+  return itemCount >= limit;
 }
 
 /// Aggregated response for the dashboard home screen.
@@ -261,6 +347,35 @@ class DashboardService {
   final ApiClient _api;
 
   DashboardService(this._api);
+
+  /// Paginated `/articles` for the full announcements list (`page` is 1-based).
+  Future<ArticlesPageResult> fetchArticlesPage(int page) async {
+    if (page < 1) {
+      throw ArgumentError.value(page, 'page', 'must be >= 1');
+    }
+    try {
+      final response = await _api.get<Map<String, dynamic>>(
+        '/articles',
+        queryParameters: {'page': page},
+      );
+      final body = response.data ?? <String, dynamic>{};
+      if (body['success'] != true) {
+        throw ApiException(
+          message: (body['message'] ?? 'Failed to load articles.').toString(),
+          statusCode: response.statusCode,
+          data: body,
+        );
+      }
+      final articlesData =
+          body['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+      final articlesList = articlesData['articles'] as List<dynamic>? ?? [];
+      final items = _announcementsFromArticlesJson(articlesList, page);
+      final hasMore = _articlesDataHasMore(articlesData, items.length);
+      return ArticlesPageResult(items: items, hasMore: hasMore);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
 
   Future<DailyAttendanceInfo> _fetchDailyAttendanceForDashboard({
     required String dateParam,
@@ -379,22 +494,7 @@ class DashboardService {
       final articlesData =
           articlesBody['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
       final articlesList = articlesData['articles'] as List<dynamic>? ?? [];
-      final announcements = <Announcement>[];
-      for (var i = 0; i < articlesList.length; i++) {
-        final item = articlesList[i];
-        if (item is! Map<String, dynamic>) continue;
-        final title = (item['title'] ?? '').toString();
-        final fileUrl = normalizeArticleFileUrl(
-          (item['file_url'] ?? '').toString(),
-        );
-        announcements.add(
-          Announcement(
-            id: 'article_$i',
-            title: title,
-            fileUrl: fileUrl,
-          ),
-        );
-      }
+      final announcements = _announcementsFromArticlesJson(articlesList, 1);
 
       final dailyAttendance = await _fetchDailyAttendanceForDashboard(
         dateParam: dateParam,
