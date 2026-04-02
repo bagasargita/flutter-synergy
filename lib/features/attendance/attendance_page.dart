@@ -231,6 +231,36 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
     }
   }
 
+  Future<void> _onCheckInOutPressed() async {
+    if (_currentLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Location is required. Refresh position first.'),
+        ),
+      );
+      return;
+    }
+
+    final profile = _profile;
+    if (profile == null) return;
+
+    if (!profile.selfieRequired) {
+      if (!mounted) return;
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (context) => AttendanceProcessingPage(
+            kind: widget.kind,
+            lat: _currentLocation!.latitude,
+            lon: _currentLocation!.longitude,
+          ),
+        ),
+      );
+      return;
+    }
+
+    await _openCamera();
+  }
+
   Future<void> _openCamera() async {
     if (_currentLocation == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -356,7 +386,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed: _canCheckIn ? _openCamera : null,
+                    onPressed: _canCheckIn ? _onCheckInOutPressed : null,
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(

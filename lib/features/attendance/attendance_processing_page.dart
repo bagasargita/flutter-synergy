@@ -16,13 +16,14 @@ class AttendanceProcessingPage extends ConsumerStatefulWidget {
   const AttendanceProcessingPage({
     super.key,
     required this.kind,
-    required this.photoPath,
+    this.photoPath,
     required this.lat,
     required this.lon,
   });
 
   final AttendanceSubmitKind kind;
-  final String photoPath;
+  /// `null` when profile has `selfie_required: false` (no camera step).
+  final String? photoPath;
   final double lat;
   final double lon;
 
@@ -60,9 +61,7 @@ class _AttendanceProcessingPageState
       setState(() => _uploadProgress = 0.45);
 
       final at = DateTime.now();
-      await ref
-          .read(attendanceServiceProvider)
-          .submitAttendance(
+      await ref.read(attendanceServiceProvider).submitAttendance(
             kind: widget.kind,
             attachmentPath: widget.photoPath,
             lat: widget.lat,
@@ -115,6 +114,9 @@ class _AttendanceProcessingPageState
       });
     }
   }
+
+  bool get _hasPhoto =>
+      widget.photoPath != null && widget.photoPath!.trim().isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -178,14 +180,24 @@ class _AttendanceProcessingPageState
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 28),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  height: 160,
-                  width: 120,
-                  child: Image.file(File(widget.photoPath), fit: BoxFit.cover),
+              if (_hasPhoto)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: SizedBox(
+                    height: 160,
+                    width: 120,
+                    child: Image.file(
+                      File(widget.photoPath!),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                )
+              else
+                Icon(
+                  Icons.place_rounded,
+                  size: 64,
+                  color: theme.colorScheme.primary.withValues(alpha: 0.5),
                 ),
-              ),
               const Spacer(),
               if (_error != null) ...[
                 Text(
@@ -227,7 +239,7 @@ class _AttendanceProcessingPageState
                             alpha: 0.12,
                           ),
                           child: Icon(
-                            Icons.face_rounded,
+                            _hasPhoto ? Icons.face_rounded : Icons.sync_rounded,
                             size: 18,
                             color: theme.colorScheme.primary,
                           ),
@@ -235,7 +247,7 @@ class _AttendanceProcessingPageState
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Uploading Selfie',
+                            _hasPhoto ? 'Uploading Selfie' : 'Submitting',
                             style: theme.textTheme.titleSmall?.copyWith(
                               fontWeight: FontWeight.w600,
                             ),

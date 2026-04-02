@@ -52,9 +52,11 @@ class AttendanceService {
         '$sign$oh:$om';
   }
 
+  /// [attachmentPath] is required when the user must submit a selfie; omit or pass
+  /// `null` when `selfie_required` is false on `/users/me`.
   Future<void> submitAttendance({
     required AttendanceSubmitKind kind,
-    required String attachmentPath,
+    String? attachmentPath,
     required double lat,
     required double lon,
     DateTime? at,
@@ -63,17 +65,12 @@ class AttendanceService {
     final deviceId = await DeviceContext.getOrCreateDeviceId();
     final ip = await DeviceContext.bestEffortLocalIpv4();
 
-    final file = File(attachmentPath);
-    if (!await file.exists()) {
-      throw const ApiException(message: 'Photo file not found.');
-    }
+    final path = attachmentPath?.trim() ?? '';
+    final hasPhoto = path.isNotEmpty;
 
     File? webpFile;
     try {
-      webpFile = await _jpegToWebpTemp(attachmentPath);
-      final webpName = _fileName(webpFile.path);
-
-      final form = FormData.fromMap({
+      final fields = <String, dynamic>{
         'remark': kind.remark,
         'lat': lat.toString(),
         'lon': lon.toString(),
@@ -81,12 +78,23 @@ class AttendanceService {
         'device_info[device_id]': deviceId,
         // API spelling (single "s"): matches Postman / backend.
         'device_info[ip_addres]': ip.isEmpty ? '0.0.0.0' : ip,
-        'attachment': await MultipartFile.fromFile(
+      };
+
+      if (hasPhoto) {
+        final file = File(path);
+        if (!await file.exists()) {
+          throw const ApiException(message: 'Photo file not found.');
+        }
+        webpFile = await _jpegToWebpTemp(path);
+        final webpName = _fileName(webpFile.path);
+        fields['attachment'] = await MultipartFile.fromFile(
           webpFile.path,
           filename: webpName,
           contentType: MediaType('image', 'webp'),
-        ),
-      });
+        );
+      }
+
+      final form = FormData.fromMap(fields);
 
       logFormData(form, label: 'POST ${kind.path}');
 
