@@ -1,6 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_synergy/core/widgets/image_zoom_dialog.dart';
 import 'package:flutter_synergy/features/dashboard/dashboard_service.dart';
 import 'package:flutter_synergy/features/dashboard/widgets/dashboard_theme.dart';
+
+bool _announcementHasZoomableImage(Announcement a) {
+  final u = a.fileUrl?.trim() ?? '';
+  if (u.isNotEmpty) return true;
+  final p = a.imageAsset?.trim() ?? '';
+  return p.isNotEmpty;
+}
+
+void _openAnnouncementImageZoom(BuildContext context, Announcement a) {
+  final u = a.fileUrl?.trim() ?? '';
+  if (u.isNotEmpty) {
+    showImageZoomDialog(context: context, networkUrl: u);
+    return;
+  }
+  final p = a.imageAsset?.trim() ?? '';
+  if (p.isNotEmpty) {
+    showImageZoomDialog(context: context, assetPath: p);
+  }
+}
 
 /// Max height for the banner area so tall infographics scale down but stay fully visible.
 const double _kAnnouncementBannerHeight = 280;
@@ -60,10 +80,7 @@ class AnnouncementsSection extends StatelessWidget {
 
 /// Single announcement card with image placeholder, title, date, and pagination dots.
 class AnnouncementCard extends StatelessWidget {
-  const AnnouncementCard({
-    super.key,
-    required this.announcement,
-  });
+  const AnnouncementCard({super.key, required this.announcement});
 
   final Announcement announcement;
 
@@ -119,12 +136,18 @@ class AnnouncementCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: ColoredBox(
-                color: Colors.grey.shade100,
-                child: SizedBox(
-                  width: double.infinity,
-                  height: _kAnnouncementBannerHeight,
-                  child: _announcementBanner(announcement),
+              child: Material(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: _announcementHasZoomableImage(announcement)
+                      ? () => _openAnnouncementImageZoom(context, announcement)
+                      : null,
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: _kAnnouncementBannerHeight,
+                    child: _announcementBanner(announcement),
+                  ),
                 ),
               ),
             ),
@@ -134,10 +157,7 @@ class AnnouncementCard extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
               child: Text(
                 announcement.date,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade500,
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
               ),
             )
           else
@@ -150,10 +170,7 @@ class AnnouncementCard extends StatelessWidget {
 
 /// Carousel of announcements with page indicator dots.
 class AnnouncementCarousel extends StatefulWidget {
-  const AnnouncementCarousel({
-    super.key,
-    required this.announcements,
-  });
+  const AnnouncementCarousel({super.key, required this.announcements});
 
   final List<Announcement> announcements;
 
@@ -194,23 +211,20 @@ class _AnnouncementCarouselState extends State<AnnouncementCarousel> {
         const SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-            widget.announcements.length,
-            (index) {
-              final isActive = index == _currentPage;
-              return Container(
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isActive
-                      ? DashboardTheme.accentBlue
-                      : Colors.grey.shade300,
-                ),
-              );
-            },
-          ),
+          children: List.generate(widget.announcements.length, (index) {
+            final isActive = index == _currentPage;
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isActive
+                    ? DashboardTheme.accentBlue
+                    : Colors.grey.shade300,
+              ),
+            );
+          }),
         ),
       ],
     );
@@ -239,7 +253,7 @@ Widget _announcementBanner(Announcement announcement) {
           ),
         );
       },
-      errorBuilder: (_, __, ___) => _announcementPlaceholder(),
+      errorBuilder: (_, _, _) => _announcementPlaceholder(),
     );
   }
   final asset = announcement.imageAsset;
@@ -250,7 +264,7 @@ Widget _announcementBanner(Announcement announcement) {
       alignment: Alignment.center,
       width: double.infinity,
       height: _kAnnouncementBannerHeight,
-      errorBuilder: (_, __, ___) => _announcementPlaceholder(),
+      errorBuilder: (_, _, _) => _announcementPlaceholder(),
     );
   }
   return _announcementPlaceholder();
@@ -268,11 +282,7 @@ Widget _announcementPlaceholder() {
       ),
     ),
     child: Center(
-      child: Icon(
-        Icons.campaign_rounded,
-        size: 48,
-        color: Colors.white70,
-      ),
+      child: Icon(Icons.campaign_rounded, size: 48, color: Colors.white70),
     ),
   );
 }
