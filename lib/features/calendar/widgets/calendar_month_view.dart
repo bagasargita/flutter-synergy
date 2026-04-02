@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_synergy/features/calendar/calendar_models.dart';
+import 'package:flutter_synergy/features/calendar/widgets/calendar_legend_mark.dart';
 import 'package:flutter_synergy/features/dashboard/widgets/dashboard_theme.dart';
 
 class CalendarMonthView extends StatelessWidget {
@@ -62,7 +63,7 @@ class CalendarMonthView extends StatelessWidget {
                     data.monthLabel,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 18,
                       fontWeight: FontWeight.w600,
                       color: DashboardTheme.darkText,
                     ),
@@ -107,7 +108,7 @@ class CalendarMonthView extends StatelessWidget {
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 7,
                 // Fixed row height avoids default square cells (extra gap under SUN–SAT).
-                mainAxisExtent: 50,
+                mainAxisExtent: 56,
                 mainAxisSpacing: 2,
                 crossAxisSpacing: 4,
               ),
@@ -142,7 +143,7 @@ class _WeekdayLabel extends StatelessWidget {
     return Text(
       text,
       style: TextStyle(
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: FontWeight.w600,
         color: Colors.grey.shade600,
       ),
@@ -176,11 +177,24 @@ class _DayCell extends StatelessWidget {
 
     final Color baseColor = DashboardTheme.accentBlue;
 
-    final Color bgColor = isSelected ? baseColor : Colors.transparent;
-    final Color borderColor = isToday && !isSelected
-        ? baseColor.withValues(alpha: 0.7)
-        : Colors.transparent;
-    final Color textColor = isSelected ? Colors.white : DashboardTheme.darkText;
+    // Today: solid fill. Selected (non-today): outline only.
+    // When a day is both today and selected, keep solid "today" styling.
+    final Color bgColor;
+    final Color borderColor;
+    final Color textColor;
+    if (isToday) {
+      bgColor = baseColor;
+      borderColor = Colors.transparent;
+      textColor = Colors.white;
+    } else if (isSelected) {
+      bgColor = Colors.transparent;
+      borderColor = baseColor.withValues(alpha: 0.7);
+      textColor = DashboardTheme.darkText;
+    } else {
+      bgColor = Colors.transparent;
+      borderColor = Colors.transparent;
+      textColor = DashboardTheme.darkText;
+    }
 
     final legend = _legendForKey(day.legendKey);
 
@@ -192,18 +206,18 @@ class _DayCell extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 30,
-            height: 30,
+            width: 34,
+            height: 34,
             decoration: BoxDecoration(
               color: bgColor,
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(17),
               border: Border.all(color: borderColor, width: 1.5),
             ),
             alignment: Alignment.center,
             child: Text(
               '${day.date.day}',
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: textColor,
               ),
@@ -211,64 +225,13 @@ class _DayCell extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           if (legend != null)
-            _LegendMark(
+            CalendarLegendMark(
               color: legend.dotColor,
-              symbol: legend.symbol ?? 'circle',
+              symbol: legend.symbol,
+              size: 7,
             ),
         ],
       ),
     );
   }
-}
-
-class _LegendMark extends StatelessWidget {
-  const _LegendMark({required this.color, required this.symbol});
-
-  final Color color;
-  final String symbol;
-
-  @override
-  Widget build(BuildContext context) {
-    final s = symbol.toLowerCase();
-    if (s == 'triangle') {
-      return CustomPaint(
-        size: const Size(8, 6),
-        painter: _TrianglePainter(color),
-      );
-    }
-    if (s == 'square') {
-      return Container(
-        width: 6,
-        height: 6,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(1),
-        ),
-      );
-    }
-    return Container(
-      width: 6,
-      height: 6,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-    );
-  }
-}
-
-class _TrianglePainter extends CustomPainter {
-  _TrianglePainter(this.color);
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = Path()
-      ..moveTo(size.width / 2, 0)
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
-      ..close();
-    canvas.drawPath(path, Paint()..color = color);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

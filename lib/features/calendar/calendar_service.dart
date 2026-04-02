@@ -140,7 +140,12 @@ class CalendarService {
       final label = (m['label'] ?? name).toString();
       final status = m['status']?.toString();
       final colorHex = (m['color'] ?? '#888888').toString();
-      final symbol = m['symbol']?.toString();
+      final symRaw = m['symbol'];
+      final symbolStr = symRaw?.toString().trim();
+      final symbol =
+          (symbolStr == null || symbolStr.isEmpty || symbolStr == 'null')
+              ? null
+              : symbolStr;
       final key = (status == null || status.isEmpty)
           ? name
           : '$name|$status';
