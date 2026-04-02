@@ -40,6 +40,8 @@ class FlutterSynergyApp extends ConsumerWidget {
     return MaterialApp.router(
       title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
+      // Anti–fake-GPS: Android MethodChannel `com.attendance.security/check`
+      // (SecurityService + MainActivity / SecurityChecker.kt).
       scaffoldMessengerKey: globalScaffoldMessengerKey,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

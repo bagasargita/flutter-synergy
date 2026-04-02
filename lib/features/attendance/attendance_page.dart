@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_synergy/core/constants/app_constants.dart';
+import 'package:flutter_synergy/core/security/security_service.dart';
 import 'package:flutter_synergy/core/theme/app_theme.dart';
+import 'package:flutter_synergy/core/widgets/global_top_banner.dart';
 import 'package:flutter_synergy/features/auth/auth_provider.dart';
 import 'package:flutter_synergy/features/auth/auth_service.dart';
 import 'package:flutter_synergy/features/attendance/attendance_models.dart';
@@ -14,10 +16,7 @@ import 'package:flutter_synergy/features/attendance/attendance_processing_page.d
 import 'package:flutter_synergy/features/camera/camera_page.dart';
 
 class AttendancePage extends ConsumerStatefulWidget {
-  const AttendancePage({
-    super.key,
-    this.kind = AttendanceSubmitKind.checkIn,
-  });
+  const AttendancePage({super.key, this.kind = AttendanceSubmitKind.checkIn});
 
   final AttendanceSubmitKind kind;
 
@@ -103,8 +102,8 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
       final yi = ring[i].latitude;
       final xj = ring[j].longitude;
       final yj = ring[j].latitude;
-      final intersect = ((yi > y) != (yj > y)) &&
-          (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+      final intersect =
+          ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
       if (intersect) inside = !inside;
     }
     return inside;
@@ -208,8 +207,12 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
       }
 
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       );
+
+      SecurityService.instance.recordPositionSample(position);
 
       final currentLatLng = LatLng(position.latitude, position.longitude);
 
@@ -244,15 +247,21 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
     final profile = _profile;
     if (profile == null) return;
 
+    final report = await SecurityService.instance.checkSecurity();
+    if (!mounted) return;
+    if (report.isRisky) {
+      GlobalTopBanner.showError(
+        title: 'Location Not Trusted',
+        subtitle: 'Please disable Fake GPS or use a trusted location.',
+      );
+      return;
+    }
+
     if (!profile.selfieRequired) {
       if (!mounted) return;
       await Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
-          builder: (context) => AttendanceProcessingPage(
-            kind: widget.kind,
-            lat: _currentLocation!.latitude,
-            lon: _currentLocation!.longitude,
-          ),
+          builder: (context) => AttendanceProcessingPage(kind: widget.kind),
         ),
       );
       return;
@@ -262,15 +271,6 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
   }
 
   Future<void> _openCamera() async {
-    if (_currentLocation == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Location is required. Refresh position first.'),
-        ),
-      );
-      return;
-    }
-
     final title = widget.kind == AttendanceSubmitKind.checkIn
         ? 'Check-in photo'
         : 'Check-out photo';
@@ -285,12 +285,8 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
 
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (context) => AttendanceProcessingPage(
-          kind: widget.kind,
-          photoPath: photoPath,
-          lat: _currentLocation!.latitude,
-          lon: _currentLocation!.longitude,
-        ),
+        builder: (context) =>
+            AttendanceProcessingPage(kind: widget.kind, photoPath: photoPath),
       ),
     );
   }
@@ -362,8 +358,8 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
                                 (_isGettingLocation
                                     ? 'Getting current location...'
                                     : (_currentLocation != null
-                                        ? 'Location updated'
-                                        : 'Location unavailable')),
+                                          ? 'Location updated'
+                                          : 'Location unavailable')),
                             textAlign: TextAlign.center,
                             style: theme.textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w500,
@@ -439,9 +435,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(
-          AppConstants.defaultRadius * 1.2,
-        ),
+        borderRadius: BorderRadius.circular(AppConstants.defaultRadius * 1.2),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
@@ -451,9 +445,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(
-          AppConstants.defaultRadius * 1.2,
-        ),
+        borderRadius: BorderRadius.circular(AppConstants.defaultRadius * 1.2),
         child: Stack(
           children: [
             Positioned.fill(
@@ -529,11 +521,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
             Align(
               alignment: Alignment.bottomCenter,
               child: Padding(
-                padding: const EdgeInsets.only(
-                  bottom: 32,
-                  left: 24,
-                  right: 24,
-                ),
+                padding: const EdgeInsets.only(bottom: 32, left: 24, right: 24),
                 child: SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(

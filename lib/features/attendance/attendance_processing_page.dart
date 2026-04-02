@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_synergy/core/api/api_exception.dart';
 import 'package:flutter_synergy/core/router/app_router.dart';
+import 'package:flutter_synergy/core/security/security_service.dart';
 import 'package:flutter_synergy/core/widgets/global_snackbar.dart';
 import 'package:flutter_synergy/core/theme/app_theme.dart';
 import 'package:flutter_synergy/features/attendance/attendance_models.dart';
@@ -17,15 +18,12 @@ class AttendanceProcessingPage extends ConsumerStatefulWidget {
     super.key,
     required this.kind,
     this.photoPath,
-    required this.lat,
-    required this.lon,
   });
 
   final AttendanceSubmitKind kind;
+
   /// `null` when profile has `selfie_required: false` (no camera step).
   final String? photoPath;
-  final double lat;
-  final double lon;
 
   @override
   ConsumerState<AttendanceProcessingPage> createState() =>
@@ -61,11 +59,11 @@ class _AttendanceProcessingPageState
       setState(() => _uploadProgress = 0.45);
 
       final at = DateTime.now();
-      await ref.read(attendanceServiceProvider).submitAttendance(
+      await ref
+          .read(attendanceServiceProvider)
+          .submitAttendance(
             kind: widget.kind,
             attachmentPath: widget.photoPath,
-            lat: widget.lat,
-            lon: widget.lon,
             at: at,
           );
 
@@ -99,6 +97,12 @@ class _AttendanceProcessingPageState
       });
     } on ApiException catch (e) {
       if (!mounted) return;
+      if (e.message == kAttendanceLocationBlockedMessage) {
+        GlobalTopBanner.showError(
+          title: 'Location Not Trusted',
+          subtitle: 'Please disable Fake GPS or use a trusted location.',
+        );
+      }
       setState(() {
         _error = e.message;
         _busy = false;
