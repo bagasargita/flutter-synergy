@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_synergy/core/api/api_exception.dart';
 import 'package:flutter_synergy/core/utils/logger.dart';
 import 'package:flutter_synergy/core/utils/token_storage.dart';
 import 'package:flutter_synergy/features/auth/auth_service.dart';
@@ -123,17 +124,19 @@ class AuthController extends StateNotifier<AuthState> {
 
         AppLogger.info('Login successful for ${user.username}');
       } catch (e) {
+        final message = e is ApiException ? e.message : e.toString();
         await TokenStorage.clearToken();
         state = state.copyWith(
           status: AuthStatus.error,
-          errorMessage: e.toString(),
+          errorMessage: message,
         );
         AppLogger.error('Failed to load user profile after login', error: e);
       }
     } catch (e) {
+      final message = e is ApiException ? e.message : e.toString();
       state = state.copyWith(
         status: AuthStatus.error,
-        errorMessage: e.toString(),
+        errorMessage: message,
       );
       AppLogger.error('Login failed', error: e);
     }

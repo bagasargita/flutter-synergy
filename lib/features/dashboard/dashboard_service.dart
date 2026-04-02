@@ -136,6 +136,20 @@ String _primaryActionFromDailyPayload(Map<String, dynamic> data) {
   return 'Attendance';
 }
 
+/// When `/attendances/daily` returns 404 (no record yet), show a normal "Check In" card.
+DailyAttendanceInfo _emptyDailyAttendanceForDate(String headerDateLabel) {
+  return DailyAttendanceInfo(
+    date: headerDateLabel,
+    holidayName: null,
+    dayType: 'WORKING_DAY',
+    checkIn: null,
+    checkOut: null,
+    primaryAction: 'Check In',
+    attendanceStatus: null,
+    timesheet: null,
+  );
+}
+
 DailyAttendanceInfo _mapDailyAttendanceToCard({
   required Map<String, dynamic> data,
   required String headerDateLabel,
@@ -248,6 +262,42 @@ class DashboardService {
 
   DashboardService(this._api);
 
+  Future<DailyAttendanceInfo> _fetchDailyAttendanceForDashboard({
+    required String dateParam,
+    required String headerDateLabel,
+  }) async {
+    try {
+      final dailyAttendanceResponse = await _api.get<Map<String, dynamic>>(
+        '/attendances/daily',
+        queryParameters: {'date': dateParam},
+      );
+      final dailyBody = dailyAttendanceResponse.data ?? <String, dynamic>{};
+      if (dailyBody['success'] == true) {
+        final dailyData =
+            dailyBody['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
+        return _mapDailyAttendanceToCard(
+          data: dailyData,
+          headerDateLabel: headerDateLabel,
+        );
+      }
+      final msg = (dailyBody['message'] ?? '').toString().toLowerCase();
+      if (msg.contains('not found')) {
+        return _emptyDailyAttendanceForDate(headerDateLabel);
+      }
+      throw ApiException(
+        message: (dailyBody['message'] ?? 'Failed to load daily attendance.')
+            .toString(),
+        statusCode: dailyAttendanceResponse.statusCode,
+        data: dailyBody,
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return _emptyDailyAttendanceForDate(headerDateLabel);
+      }
+      throw ApiException.fromDioException(e);
+    }
+  }
+
   Future<DashboardData> fetchDashboardData() async {
     try {
       final now = DateTime.now();
@@ -289,14 +339,9 @@ class DashboardService {
           '/articles',
           queryParameters: {'page': 1},
         ),
-        _api.get<Map<String, dynamic>>(
-          '/attendances/daily',
-          queryParameters: {'date': dateParam},
-        ),
       ]);
       final monthlySummaryResponse = responses[0];
       final articlesResponse = responses[1];
-      final dailyAttendanceResponse = responses[2];
       final monthlySummaryBody =
           monthlySummaryResponse.data ?? <String, dynamic>{};
       final monthlySummarySuccess = monthlySummaryBody['success'] == true;
@@ -351,19 +396,8 @@ class DashboardService {
         );
       }
 
-      final dailyBody = dailyAttendanceResponse.data ?? <String, dynamic>{};
-      if (dailyBody['success'] != true) {
-        throw ApiException(
-          message: (dailyBody['message'] ?? 'Failed to load daily attendance.')
-              .toString(),
-          statusCode: dailyAttendanceResponse.statusCode,
-          data: dailyBody,
-        );
-      }
-      final dailyData =
-          dailyBody['data'] as Map<String, dynamic>? ?? <String, dynamic>{};
-      final dailyAttendance = _mapDailyAttendanceToCard(
-        data: dailyData,
+      final dailyAttendance = await _fetchDailyAttendanceForDashboard(
+        dateParam: dateParam,
         headerDateLabel: dateStr,
       );
 

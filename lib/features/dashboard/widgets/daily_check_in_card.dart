@@ -170,28 +170,6 @@ class DailyCheckInCard extends StatelessWidget {
                     (attendance.attendanceStatus != null &&
                         attendance.attendanceStatus!.isNotEmpty)) ...[
                   const SizedBox(height: 13),
-                  // Wrap(
-                  //   spacing: 8,
-                  //   runSpacing: 6,
-                  //   children: [
-                  //     if (attendance.timesheet != null &&
-                  //         attendance.timesheet!.isNotEmpty)
-                  //       _InfoChip(
-                  //         icon: Icons.schedule_rounded,
-                  //         label: 'Timesheet',
-                  //         value: attendance.timesheet!,
-                  //       ),
-                  //     if (attendance.attendanceStatus != null &&
-                  //         attendance.attendanceStatus!.isNotEmpty)
-                  //       _InfoChip(
-                  //         icon: Icons.flag_outlined,
-                  //         label: 'Status',
-                  //         value: _humanizeAttendanceStatus(
-                  //           attendance.attendanceStatus!,
-                  //         ),
-                  //       ),
-                  //   ],
-                  // ),
                 ],
                 // const SizedBox(height: 20),
                 // Action button
@@ -233,70 +211,6 @@ class DailyCheckInCard extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-String _humanizeAttendanceStatus(String raw) {
-  return raw
-      .replaceAll('_', ' ')
-      .split(' ')
-      .where((w) => w.isNotEmpty)
-      .map(
-        (w) =>
-            '${w[0].toUpperCase()}${w.length > 1 ? w.substring(1).toLowerCase() : ''}',
-      )
-      .join(' ');
-}
-
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF3F5F9),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: Colors.grey.shade600),
-          const SizedBox(width: 6),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade600,
-                ),
-              ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: DashboardTheme.darkText,
-                ),
-              ),
-            ],
           ),
         ],
       ),

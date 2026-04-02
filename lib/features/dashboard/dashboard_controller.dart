@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_synergy/core/api/api_exception.dart';
 import 'package:flutter_synergy/core/utils/logger.dart';
 import 'package:flutter_synergy/features/dashboard/dashboard_service.dart';
 
@@ -41,9 +42,10 @@ class DashboardController extends StateNotifier<DashboardState> {
       state = state.copyWith(isLoading: false, data: data);
       AppLogger.info('Dashboard data loaded');
     } catch (e) {
+      final message = e is ApiException ? e.message : e.toString();
       state = state.copyWith(
         isLoading: false,
-        errorMessage: e.toString(),
+        errorMessage: message,
       );
       AppLogger.error('Failed to load dashboard', error: e);
     }

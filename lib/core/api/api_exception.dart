@@ -23,10 +23,13 @@ class ApiException implements Exception {
           message: 'Connection timed out. Please try again.',
         );
       case DioExceptionType.badResponse:
+        final responseData = error.response?.data;
         return ApiException(
-          message: _messageFromStatusCode(error.response?.statusCode),
+          message:
+              _messageFromResponseData(responseData) ??
+              _messageFromStatusCode(error.response?.statusCode),
           statusCode: error.response?.statusCode,
-          data: error.response?.data,
+          data: responseData,
         );
       case DioExceptionType.cancel:
         return const ApiException(message: 'Request was cancelled.');
@@ -35,6 +38,20 @@ class ApiException implements Exception {
           message: 'Unable to connect. Check your internet connection.',
         );
     }
+  }
+
+  static String? _messageFromResponseData(dynamic data) {
+    if (data is Map) {
+      final message = data['message']?.toString().trim();
+      if (message != null && message.isNotEmpty) {
+        return message;
+      }
+      final error = data['error']?.toString().trim();
+      if (error != null && error.isNotEmpty) {
+        return error;
+      }
+    }
+    return null;
   }
 
   static String _messageFromStatusCode(int? statusCode) {

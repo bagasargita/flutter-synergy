@@ -5,6 +5,8 @@ import 'package:flutter_synergy/features/auth/auth_page.dart';
 import 'package:flutter_synergy/features/auth/auth_controller.dart';
 import 'package:flutter_synergy/features/auth/auth_provider.dart';
 import 'package:flutter_synergy/features/dashboard/dashboard_page.dart';
+import 'package:flutter_synergy/features/dashboard/dashboard_provider.dart';
+import 'package:flutter_synergy/features/calendar/calendar_provider.dart';
 import 'package:flutter_synergy/features/attendance/attendance_models.dart';
 import 'package:flutter_synergy/core/widgets/root_navigator_key.dart';
 import 'package:flutter_synergy/features/attendance/attendance_page.dart';
@@ -23,6 +25,16 @@ final routerProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier<int>(0);
   ref.listen<AuthState>(authControllerProvider, (previous, next) {
     refresh.value++;
+    final wasAuthenticated = previous?.status == AuthStatus.authenticated;
+    final isAuthenticated = next.status == AuthStatus.authenticated;
+    if (isAuthenticated && !wasAuthenticated) {
+      ref.invalidate(dashboardControllerProvider);
+      ref.invalidate(calendarControllerProvider);
+    }
+    if (!isAuthenticated && wasAuthenticated) {
+      ref.invalidate(dashboardControllerProvider);
+      ref.invalidate(calendarControllerProvider);
+    }
   });
   ref.onDispose(refresh.dispose);
 

@@ -29,8 +29,8 @@ class AuthInterceptor extends Interceptor {
   ) async {
     final request = err.requestOptions;
     final isUnauthorized = err.response?.statusCode == 401;
-    final isRefreshRequest = request.path == '/refresh' ||
-        request.uri.path.endsWith('/refresh');
+    final isRefreshRequest =
+        request.path == '/refresh' || request.uri.path.endsWith('/refresh');
     final alreadyRetried = request.extra[_retryKey] == true;
 
     if (!isUnauthorized || isRefreshRequest || alreadyRetried) {
@@ -92,9 +92,7 @@ class AuthInterceptor extends Interceptor {
     try {
       final response = await refreshDio.post<Map<String, dynamic>>(
         '/refresh',
-        data: {
-          'refresh_token': refreshToken,
-        },
+        data: {'refresh_token': refreshToken},
       );
 
       final body = response.data ?? <String, dynamic>{};
@@ -109,10 +107,11 @@ class AuthInterceptor extends Interceptor {
 
       final nextAccessExpiresAt = (access?['expires_at'] ?? '').toString();
       final nextRefreshToken = (refresh?['token'] ?? refreshToken).toString();
-      final nextRefreshExpiresAt = (refresh?['expires_at'] ??
-              await TokenStorage.getRefreshExpiresAt() ??
-              '')
-          .toString();
+      final nextRefreshExpiresAt =
+          (refresh?['expires_at'] ??
+                  await TokenStorage.getRefreshExpiresAt() ??
+                  '')
+              .toString();
 
       await TokenStorage.saveAuthSession(
         accessToken: nextAccessToken,
@@ -132,17 +131,13 @@ class AuthInterceptor extends Interceptor {
 class LoggingInterceptor extends Interceptor {
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    AppLogger.info(
-      '→ ${options.method} ${options.uri}',
-    );
+    AppLogger.info('→ ${options.method} ${options.uri}');
     handler.next(options);
   }
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
-    AppLogger.info(
-      '← ${response.statusCode} ${response.requestOptions.uri}',
-    );
+    AppLogger.info('← ${response.statusCode} ${response.requestOptions.uri}');
     handler.next(response);
   }
 

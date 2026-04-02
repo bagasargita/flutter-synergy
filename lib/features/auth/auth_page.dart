@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_synergy/features/auth/auth_controller.dart';
 import 'package:flutter_synergy/features/auth/auth_provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AuthPage extends ConsumerStatefulWidget {
   const AuthPage({super.key});
@@ -15,6 +17,28 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  String? _appVersion;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAppVersion();
+  }
+
+  Future<void> _loadAppVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) setState(() => _appVersion = info.version);
+  }
+
+  Future<void> _openItHotlineWhatsapp() async {
+    final uri = Uri.parse('https://wa.me/628559010474');
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to open WhatsApp link.')),
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -105,7 +129,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
 
                         // -- Username / Employee ID --
                         Text(
-                          'Username / Employee ID',
+                          'Username',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                             color: const Color(0xFF1A1A2E),
@@ -118,7 +142,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                           textInputAction: TextInputAction.next,
                           style: const TextStyle(fontSize: 14),
                           decoration: InputDecoration(
-                            hintText: 'e.g. EMP-12345',
+                            hintText: 'john.doe',
                             hintStyle: TextStyle(
                               color: Colors.grey.shade400,
                               fontSize: 14,
@@ -157,7 +181,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                           ),
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
-                              return 'Please enter your email or employee ID';
+                              return 'Please enter your username';
                             }
                             return null;
                           },
@@ -333,30 +357,56 @@ class _AuthPageState extends ConsumerState<AuthPage> {
 
                 const SizedBox(height: 28),
 
-                // -- Bottom link --
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                // -- Help + app version --
+                Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      "Don't have an account? ",
+                      'Unable to Access Your Account?',
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.grey.shade600,
                         fontSize: 13,
                       ),
                     ),
-                    GestureDetector(
-                      onTap: () {
-                        // TODO: Handle contact HR action
-                      },
-                      child: const Text(
-                        'Contact HR',
+                    const SizedBox(height: 4),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          'Please ',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 13,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: _openItHotlineWhatsapp,
+                          child: const Text(
+                            'Contact IT Hotline',
+                            style: TextStyle(
+                              color: Color(0xFF1A73E8),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_appVersion != null) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        'VERSION ${_appVersion!}'.toUpperCase(),
+                        textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: Color(0xFF1A73E8),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade500,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.6,
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ],
