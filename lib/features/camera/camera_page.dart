@@ -37,6 +37,8 @@ class _CameraPageState extends State<CameraPage> {
   Timer? _captureTimer;
   bool _isProcessing = false;
   bool _isCapturingFinalPhoto = false;
+  /// Bumped on dispose so in-flight [takePicture] / analysis does not touch a disposed controller.
+  int _cameraGeneration = 0;
   late FaceDetectionService _faceService;
   late CameraCaptureConfig _captureConfig;
   // Blink liveness: require eyes open → closed → open (consecutive frames to avoid photo spoof).
@@ -56,9 +58,15 @@ class _CameraPageState extends State<CameraPage> {
   @override
   void dispose() {
     _captureTimer?.cancel();
-    _controller?.dispose();
+    _captureTimer = null;
+    _cameraGeneration++;
+    final released = _controller;
+    _controller = null;
     _faceService.close();
     super.dispose();
+    if (released != null) {
+      Future<void>.delayed(Duration.zero, released.dispose);
+    }
   }
 
   Future<void> _initCamera() async {
@@ -116,10 +124,12 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> _captureAndAnalyze() async {
+    final gen = _cameraGeneration;
     if (_controller == null ||
         !_controller!.value.isInitialized ||
         _isProcessing ||
-        !mounted) {
+        !mounted ||
+        gen != _cameraGeneration) {
       return;
     }
     if (_state != _CameraFlowState.scanning &&
@@ -130,10 +140,26 @@ class _CameraPageState extends State<CameraPage> {
 
     _isProcessing = true;
     try {
-      final file = await _controller!.takePicture();
+      final c = _controller;
+      if (c == null ||
+          !c.value.isInitialized ||
+          gen != _cameraGeneration ||
+          !mounted) {
+        _isProcessing = false;
+        return;
+      }
+      final file = await c.takePicture();
+      if (!mounted || gen != _cameraGeneration) return;
+
+      final cooldown = _captureConfig.postStillCaptureCooldown;
+      if (cooldown > Duration.zero) {
+        await Future<void>.delayed(cooldown);
+        if (!mounted || gen != _cameraGeneration) return;
+      }
+
       final result = await _faceService.processFile(file.path);
 
-      if (!mounted) return;
+      if (!mounted || gen != _cameraGeneration) return;
 
       switch (_state) {
         case _CameraFlowState.scanning:
@@ -169,12 +195,13 @@ class _CameraPageState extends State<CameraPage> {
           }
           if (!result.classificationAvailable) {
             _captureTimer?.cancel();
+            _captureTimer = null;
             setState(() {
               _state = _CameraFlowState.readyToCapture;
-              _message = 'Verification complete. Capturing photo...';
+              _message = _readyToCaptureMessage();
             });
             _isProcessing = false;
-            _autoCaptureAfterVerification();
+            _maybeAutoCaptureAfterVerification();
             return;
           }
           if (result.eyesOpen) {
@@ -183,12 +210,13 @@ class _CameraPageState extends State<CameraPage> {
             if (_blinkClosedPhaseSeen &&
                 _consecutiveEyesOpen >= _requiredOpenFrames) {
               _captureTimer?.cancel();
+              _captureTimer = null;
               setState(() {
                 _state = _CameraFlowState.readyToCapture;
-                _message = 'Verification complete. Capturing photo...';
+                _message = _readyToCaptureMessage();
               });
               _isProcessing = false;
-              _autoCaptureAfterVerification();
+              _maybeAutoCaptureAfterVerification();
               return;
             }
             setState(
@@ -224,12 +252,27 @@ class _CameraPageState extends State<CameraPage> {
     _isProcessing = false;
   }
 
+  String _readyToCaptureMessage() {
+    return _captureConfig.autoCaptureAfterVerification
+        ? 'Verification complete. Capturing photo...'
+        : 'Verification complete. Tap Capture to take your photo';
+  }
+
+  void _maybeAutoCaptureAfterVerification() {
+    if (_captureConfig.autoCaptureAfterVerification) {
+      _autoCaptureAfterVerification();
+    }
+  }
+
   Future<void> _onCapturePressed() async {
     if (_isCapturingFinalPhoto) return;
-    if (_controller == null || !_controller!.value.isInitialized) return;
+    final gen = _cameraGeneration;
+    final c = _controller;
+    if (c == null || !c.value.isInitialized || gen != _cameraGeneration) return;
     _isCapturingFinalPhoto = true;
     try {
-      final file = await _controller!.takePicture();
+      final file = await c.takePicture();
+      if (!mounted || gen != _cameraGeneration) return;
       final dir = await getTemporaryDirectory();
       final fileName =
           'face_capture_${DateTime.now().millisecondsSinceEpoch}.jpg';
@@ -253,9 +296,10 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> _autoCaptureAfterVerification() async {
-    if (_isCapturingFinalPhoto || !mounted) return;
+    final gen = _cameraGeneration;
+    if (_isCapturingFinalPhoto || !mounted || gen != _cameraGeneration) return;
     await Future<void>.delayed(const Duration(milliseconds: 250));
-    if (!mounted) return;
+    if (!mounted || gen != _cameraGeneration) return;
     await _onCapturePressed();
   }
 

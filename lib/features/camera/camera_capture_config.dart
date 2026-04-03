@@ -13,6 +13,8 @@ final class CameraCaptureConfig {
     required this.resolutionPreset,
     required this.enableAudio,
     this.lockPortraitOnIos = false,
+    this.autoCaptureAfterVerification = true,
+    this.postStillCaptureCooldown = Duration.zero,
   });
 
   final ImageFormatGroup? imageFormatGroup;
@@ -23,14 +25,23 @@ final class CameraCaptureConfig {
   /// Stabilizes still capture on iOS when the app is portrait-only.
   final bool lockPortraitOnIos;
 
+  /// After liveness passes, take the final photo automatically (Android). iOS
+  /// uses manual Capture only to avoid stacked still captures and Fig -17281.
+  final bool autoCaptureAfterVerification;
+
+  /// Brief pause after each analysis still on iOS so AVFoundation can settle.
+  final Duration postStillCaptureCooldown;
+
   static CameraCaptureConfig forCurrentPlatform() {
     if (Platform.isIOS) {
       return const CameraCaptureConfig(
         imageFormatGroup: ImageFormatGroup.bgra8888,
-        analysisInterval: Duration(milliseconds: 1200),
+        analysisInterval: Duration(milliseconds: 1800),
         resolutionPreset: ResolutionPreset.medium,
         enableAudio: false,
         lockPortraitOnIos: true,
+        autoCaptureAfterVerification: false,
+        postStillCaptureCooldown: Duration(milliseconds: 220),
       );
     }
     return const CameraCaptureConfig(
@@ -38,6 +49,7 @@ final class CameraCaptureConfig {
       analysisInterval: Duration(milliseconds: 600),
       resolutionPreset: ResolutionPreset.medium,
       enableAudio: false,
+      autoCaptureAfterVerification: true,
     );
   }
 }
