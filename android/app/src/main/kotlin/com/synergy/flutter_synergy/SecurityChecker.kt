@@ -15,19 +15,27 @@ import java.io.File
  */
 object SecurityChecker {
 
+    /** Ignore very old last-known fixes (they may still carry mock=true after Fake GPS is off). */
+    private const val MAX_LAST_KNOWN_AGE_MS = 3 * 60 * 1000L
+
     /**
      * Uses last known fixes from GPS / network providers and applies:
      * - API 31+ [Location.isMock]
      * - API < 31 [Location.isFromMockProvider]
+     *
+     * Only considers fixes newer than [MAX_LAST_KNOWN_AGE_MS] so a stale mock-tagged
+     * cached location does not block the user forever after disabling spoof apps.
      */
     fun isMockLocation(context: Context): Boolean {
         val lm = context.applicationContext.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
             ?: return false
 
+        val now = System.currentTimeMillis()
         val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
         for (provider in providers) {
             try {
                 val loc = lm.getLastKnownLocation(provider) ?: continue
+                if (now - loc.time > MAX_LAST_KNOWN_AGE_MS) continue
                 if (loc.isMockCompat()) return true
             } catch (_: SecurityException) {
                 // Permission not granted — treat as non-mock; Flutter layer still validates.

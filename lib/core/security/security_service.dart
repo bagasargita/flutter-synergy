@@ -11,10 +11,6 @@ import 'package:flutter_synergy/core/security/security_report.dart';
 /// Channel name must match [MainActivity] / [SecurityChecker] on Android.
 const String kSecurityMethodChannel = 'com.attendance.security/check';
 
-/// User-facing copy when attendance is blocked (banner + submit `ApiException`).
-const String kAttendanceLocationBlockedMessage =
-    'Location not trusted. Please disable Fake GPS or use a trusted location.';
-
 /// Max distance (meters) considered a “teleport” if it happens within [_teleportWindow].
 const double _teleportDistanceMeters = 1000;
 
@@ -70,11 +66,12 @@ class SecurityService {
     if (perm == LocationPermission.denied ||
         perm == LocationPermission.deniedForever) {
       return const SecurityReport(
+        permissionDenied: true,
         isMockLocation: false,
         isDeveloperMode: false,
         isRooted: false,
         isEmulator: false,
-        isSuspiciousMovement: true,
+        isSuspiciousMovement: false,
       );
     }
 

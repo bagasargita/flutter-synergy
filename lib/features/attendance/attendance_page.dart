@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_synergy/core/constants/app_constants.dart';
+import 'package:flutter_synergy/core/security/security_report.dart';
 import 'package:flutter_synergy/core/security/security_service.dart';
 import 'package:flutter_synergy/core/theme/app_theme.dart';
 import 'package:flutter_synergy/core/widgets/global_top_banner.dart';
@@ -251,8 +252,8 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
     if (!mounted) return;
     if (report.isRisky) {
       GlobalTopBanner.showError(
-        title: 'Location Not Trusted',
-        subtitle: 'Please disable Fake GPS or use a trusted location.',
+        title: 'Attendance blocked',
+        subtitle: attendanceSecurityBlockMessage(report),
       );
       return;
     }

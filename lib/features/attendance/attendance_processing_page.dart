@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_synergy/core/api/api_exception.dart';
 import 'package:flutter_synergy/core/router/app_router.dart';
-import 'package:flutter_synergy/core/security/security_service.dart';
+import 'package:flutter_synergy/core/security/security_report.dart';
 import 'package:flutter_synergy/core/widgets/global_snackbar.dart';
 import 'package:flutter_synergy/core/theme/app_theme.dart';
 import 'package:flutter_synergy/features/attendance/attendance_models.dart';
@@ -97,10 +97,13 @@ class _AttendanceProcessingPageState
       });
     } on ApiException catch (e) {
       if (!mounted) return;
-      if (e.message == kAttendanceLocationBlockedMessage) {
+      final data = e.data;
+      final securityBlock = data is Map &&
+          data[kAttendanceSecurityBlockDataKey] == true;
+      if (securityBlock) {
         GlobalTopBanner.showError(
-          title: 'Location Not Trusted',
-          subtitle: 'Please disable Fake GPS or use a trusted location.',
+          title: 'Attendance blocked',
+          subtitle: e.message,
         );
       }
       setState(() {

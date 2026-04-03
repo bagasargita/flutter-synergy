@@ -6,6 +6,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_synergy/core/api/api_client.dart';
 import 'package:flutter_synergy/core/api/api_exception.dart';
+import 'package:flutter_synergy/core/security/security_report.dart';
 import 'package:flutter_synergy/core/security/security_service.dart';
 import 'package:flutter_synergy/core/utils/device_context.dart';
 import 'package:flutter_synergy/core/utils/form_data_logger.dart';
@@ -57,9 +58,8 @@ class AttendanceService {
   /// `null` when `selfie_required` is false on `/users/me`.
   ///
   /// Runs [SecurityService.checkSecurity] immediately before upload. If the location
-  /// is not trusted (mock GPS, etc.), throws [ApiException] with
-  /// [kAttendanceLocationBlockedMessage] — caller should not navigate here without
-  /// a prior check, but this is the authoritative gate.
+  /// is not trusted, throws [ApiException] with a specific [attendanceSecurityBlockMessage]
+  /// and [kAttendanceSecurityBlockDataKey] in [ApiException.data].
   Future<void> submitAttendance({
     required AttendanceSubmitKind kind,
     String? attachmentPath,
@@ -67,11 +67,17 @@ class AttendanceService {
   }) async {
     final report = await SecurityService.instance.checkSecurity();
     if (report.isRisky) {
-      throw const ApiException(message: kAttendanceLocationBlockedMessage);
+      throw ApiException(
+        message: attendanceSecurityBlockMessage(report),
+        data: <String, dynamic>{kAttendanceSecurityBlockDataKey: true},
+      );
     }
     final locationSnapshot = SecurityService.instance.lastAcceptedSnapshot;
     if (locationSnapshot == null) {
-      throw const ApiException(message: kAttendanceLocationBlockedMessage);
+      throw ApiException(
+        message: attendanceSecurityBlockMessage(report),
+        data: <String, dynamic>{kAttendanceSecurityBlockDataKey: true},
+      );
     }
 
     final lat = locationSnapshot.latitude;

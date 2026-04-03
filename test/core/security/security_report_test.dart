@@ -3,16 +3,28 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('SecurityReport', () {
-    test('isRisky is true when any signal is true', () {
+    test('isRisky is true when a blocking signal is true', () {
       const report = SecurityReport(
         isMockLocation: false,
-        isDeveloperMode: false,
+        isDeveloperMode: true,
         isRooted: false,
         isEmulator: false,
         isSuspiciousMovement: true,
       );
 
       expect(report.isRisky, isTrue);
+    });
+
+    test('isRisky ignores developer options alone', () {
+      const report = SecurityReport(
+        isMockLocation: false,
+        isDeveloperMode: true,
+        isRooted: false,
+        isEmulator: false,
+        isSuspiciousMovement: false,
+      );
+
+      expect(report.isRisky, isFalse);
     });
 
     test('toJson exposes all flags', () {
@@ -26,6 +38,7 @@ void main() {
 
       final json = report.toJson();
 
+      expect(json['permissionDenied'], isFalse);
       expect(json['isMockLocation'], isTrue);
       expect(json['isDeveloperMode'], isTrue);
       expect(json['isRooted'], isFalse);
