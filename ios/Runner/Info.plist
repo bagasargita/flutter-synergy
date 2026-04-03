@@ -72,5 +72,18 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<!-- Location permission descriptions for attendance map -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app needs access to your location to record attendance and show your position on the office map.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>This app needs access to your location to record attendance when you are near the office.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app uses the camera for face verification during check-in.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app may use the microphone when the camera is active (for example if video is recorded during check-in).</string>
 </dict>
 </plist>
