@@ -141,6 +141,14 @@ class _CameraPageState extends State<CameraPage> {
             setState(() => _message = 'Position your face in the frame');
           } else if (result.faceCount > 1) {
             setState(() => _message = 'Only one person should be in frame');
+          } else if (result.faceCount == 1) {
+            if (!result.classificationAvailable) {
+              setState(() => _message = 'Hold still — analyzing face');
+            } else if (!result.eyesOpen) {
+              setState(() => _message = 'Look at the camera with eyes open');
+            } else {
+              setState(() => _message = 'Move a little closer to the camera');
+            }
           }
           break;
         case _CameraFlowState.livenessBlink:
@@ -150,6 +158,16 @@ class _CameraPageState extends State<CameraPage> {
               () => _message = 'Keep your face in frame, then blink once',
             );
             break;
+          }
+          if (!result.classificationAvailable) {
+            _captureTimer?.cancel();
+            setState(() {
+              _state = _CameraFlowState.readyToCapture;
+              _message = 'Verification complete. Capturing photo...';
+            });
+            _isProcessing = false;
+            _autoCaptureAfterVerification();
+            return;
           }
           if (result.eyesOpen) {
             _consecutiveEyesClosed = 0;
