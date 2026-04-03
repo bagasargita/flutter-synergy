@@ -2,17 +2,24 @@ import Flutter
 import UIKit
 import Vision
 
-/// Apple Vision face landmarks (alternative to ML Kit on iOS). Exposes synthetic
-/// eye "probabilities" from landmark geometry so Dart can reuse the same thresholds.
+/// Apple Vision face landmarks. Registered on the engine binary messenger so it
+/// works with Flutter's implicit engine (not only `registrar(forPlugin:)`).
 @objc(FaceDetectionChannel)
-class FaceDetectionChannel: NSObject, FlutterPlugin {
-  static func register(with registrar: FlutterPluginRegistrar) {
+final class FaceDetectionChannel: NSObject {
+  private static var methodChannel: FlutterMethodChannel?
+  private static var retained: FaceDetectionChannel?
+
+  static func register(with messenger: FlutterBinaryMessenger) {
+    retained = FaceDetectionChannel()
     let channel = FlutterMethodChannel(
       name: "com.synergy.flutter_synergy/vision_face",
-      binaryMessenger: registrar.messenger()
+      binaryMessenger: messenger
     )
-    let instance = FaceDetectionChannel()
-    registrar.addMethodCallDelegate(instance, channel: channel)
+    methodChannel = channel
+    let handler = retained!
+    channel.setMethodCallHandler { call, result in
+      handler.handle(call, result: result)
+    }
   }
 
   func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -35,8 +42,6 @@ class FaceDetectionChannel: NSObject, FlutterPlugin {
     }
   }
 
-  /// Returns a dictionary: faceCount, bounds (optional L,T,W,H in **image pixels**, top-left origin),
-  /// leftEyeOpen, rightEyeOpen (0…1 heuristic), classificationAvailable (bool).
   private static func analyzeStillImage(path: String) -> [String: Any] {
     guard let image = UIImage(contentsOfFile: path), let cgImage = image.cgImage else {
       return ["faceCount": 0, "classificationAvailable": false]
@@ -89,7 +94,6 @@ class FaceDetectionChannel: NSObject, FlutterPlugin {
     ]
   }
 
-  /// Normalized landmark span in face-local space → rough 0…1 "open" score (tuned for blink flow).
   private static func eyeOpennessHeuristic(_ region: VNFaceLandmarkRegion2D?) -> Double {
     guard let region = region, region.pointCount > 1 else { return 0 }
     let pts = region.normalizedPoints
@@ -101,8 +105,7 @@ class FaceDetectionChannel: NSObject, FlutterPlugin {
       maxY = max(maxY, CGFloat(p.y))
     }
     let span = max(0, maxY - minY)
-    let score = Double(min(1, span / 0.18))
-    return score
+    return Double(min(1, span / 0.18))
   }
 
   private static func cgImageOrientation(from image: UIImage) -> CGImagePropertyOrientation {

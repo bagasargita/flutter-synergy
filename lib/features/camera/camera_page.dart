@@ -4,6 +4,7 @@ import 'dart:io' show File;
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_synergy/core/constants/app_constants.dart';
 import 'package:flutter_synergy/features/camera/camera_capture_config.dart';
@@ -69,12 +70,21 @@ class _CameraPageState extends State<CameraPage> {
           .toList();
       final camera = frontList.isNotEmpty ? frontList.first : _cameras.first;
 
+      final cfg = _captureConfig;
       final controller = CameraController(
         camera,
-        _captureConfig.resolutionPreset,
-        imageFormatGroup: _captureConfig.imageFormatGroup,
+        cfg.resolutionPreset,
+        enableAudio: cfg.enableAudio,
+        imageFormatGroup: cfg.imageFormatGroup,
       );
       await controller.initialize();
+      if (cfg.lockPortraitOnIos) {
+        try {
+          await controller.lockCaptureOrientation(DeviceOrientation.portraitUp);
+        } catch (_) {
+          // Simulator or devices that reject orientation lock — non-fatal.
+        }
+      }
       if (!mounted) return;
       setState(() {
         _controller = controller;
