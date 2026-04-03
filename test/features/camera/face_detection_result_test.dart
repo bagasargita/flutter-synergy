@@ -37,7 +37,7 @@ void main() {
     test('isGoodForCapture is false for small bounding box', () {
       final face = MockFace();
       when(() => face.boundingBox).thenReturn(
-        Rect.fromLTWH(0, 0, kAndroidMinFaceWidthForCapturePx - 1, 120),
+        const Rect.fromLTWH(0, 0, kAndroidMinFaceWidthForCapturePx - 1, 120),
       );
 
       final result = FaceDetectionResult(
@@ -47,6 +47,19 @@ void main() {
       );
 
       expect(result.isGoodForCapture, isFalse);
+    });
+
+    test('iOS-style result uses faceBoundsImage without ML Kit Face', () {
+      const result = FaceDetectionResult(
+        faceCount: 1,
+        faceBoundsImage: Rect.fromLTWH(0, 0, 120, 120),
+        eyesOpen: true,
+        classificationAvailable: true,
+        minFaceWidthRequiredPx: kAndroidMinFaceWidthForCapturePx,
+      );
+
+      expect(result.hasSingleFace, isTrue);
+      expect(result.isGoodForCapture, isTrue);
     });
   });
 }

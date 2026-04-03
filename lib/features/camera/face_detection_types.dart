@@ -1,3 +1,5 @@
+import 'dart:ui' show Rect;
+
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
 /// Android: medium preset faces are usually wide enough; keep a modest pixel floor.
@@ -11,6 +13,7 @@ class FaceDetectionResult {
   const FaceDetectionResult({
     required this.faceCount,
     this.singleFace,
+    this.faceBoundsImage,
     this.eyesOpen = false,
     this.eyesClosed = false,
     this.smiling = false,
@@ -22,6 +25,11 @@ class FaceDetectionResult {
 
   final int faceCount;
   final Face? singleFace;
+
+  /// Image-space face rect in pixels (top-left origin). Set on iOS (Vision) paths
+  /// where [singleFace] is null; Android may set both for consistency.
+  final Rect? faceBoundsImage;
+
   final bool eyesOpen;
 
   /// True when both eyes are closed (for blink detection).
@@ -36,9 +44,15 @@ class FaceDetectionResult {
   /// Platform-specific minimum face width (image pixels) for [isGoodForCapture].
   final double minFaceWidthRequiredPx;
 
-  bool get hasSingleFace => faceCount == 1 && singleFace != null;
-  bool get isGoodForCapture =>
-      hasSingleFace &&
-      eyesOpen &&
-      singleFace!.boundingBox.width >= minFaceWidthRequiredPx;
+  Rect? get effectiveFaceBounds => faceBoundsImage ?? singleFace?.boundingBox;
+
+  bool get hasSingleFace => faceCount == 1 && effectiveFaceBounds != null;
+
+  bool get isGoodForCapture {
+    final box = effectiveFaceBounds;
+    return faceCount == 1 &&
+        box != null &&
+        eyesOpen &&
+        box.width >= minFaceWidthRequiredPx;
+  }
 }

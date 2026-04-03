@@ -55,6 +55,7 @@ final class FaceDetectionServiceAndroid implements FaceDetectionPlatform {
     return FaceDetectionResult(
       faceCount: 1,
       singleFace: face,
+      faceBoundsImage: face.boundingBox,
       eyesOpen: eyesOpen,
       eyesClosed: eyesClosed,
       smiling: smile > 0.5,
