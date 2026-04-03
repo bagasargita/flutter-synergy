@@ -33,6 +33,7 @@ class _CameraPageState extends State<CameraPage> {
   String? _message;
   Timer? _captureTimer;
   bool _isProcessing = false;
+  bool _isCapturingFinalPhoto = false;
   late FaceDetectionService _faceService;
   // Blink liveness: require eyes open → closed → open (consecutive frames to avoid photo spoof).
   int _consecutiveEyesOpen = 0;
@@ -104,11 +105,13 @@ class _CameraPageState extends State<CameraPage> {
     if (_controller == null ||
         !_controller!.value.isInitialized ||
         _isProcessing ||
-        !mounted)
+        !mounted) {
       return;
+    }
     if (_state != _CameraFlowState.scanning &&
-        _state != _CameraFlowState.livenessBlink)
+        _state != _CameraFlowState.livenessBlink) {
       return;
+    }
     // Don't run when readyToCapture — camera stays open, user taps Capture
 
     _isProcessing = true;
@@ -150,9 +153,10 @@ class _CameraPageState extends State<CameraPage> {
               _captureTimer?.cancel();
               setState(() {
                 _state = _CameraFlowState.readyToCapture;
-                _message = 'Verification complete. Tap Capture to take photo.';
+                _message = 'Verification complete. Capturing photo...';
               });
               _isProcessing = false;
+              _autoCaptureAfterVerification();
               return;
             }
             setState(
@@ -185,7 +189,9 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> _onCapturePressed() async {
+    if (_isCapturingFinalPhoto) return;
     if (_controller == null || !_controller!.value.isInitialized) return;
+    _isCapturingFinalPhoto = true;
     try {
       final file = await _controller!.takePicture();
       final dir = await getTemporaryDirectory();
@@ -201,7 +207,16 @@ class _CameraPageState extends State<CameraPage> {
           const SnackBar(content: Text('Failed to capture photo')),
         );
       }
+    } finally {
+      _isCapturingFinalPhoto = false;
     }
+  }
+
+  Future<void> _autoCaptureAfterVerification() async {
+    if (_isCapturingFinalPhoto || !mounted) return;
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    if (!mounted) return;
+    await _onCapturePressed();
   }
 
   void _cancel() {
@@ -321,7 +336,8 @@ class _CameraPageState extends State<CameraPage> {
                   style: const TextStyle(color: Colors.white, fontSize: 15),
                 ),
               ),
-              if (_state == _CameraFlowState.readyToCapture) ...[
+              if (_state == _CameraFlowState.readyToCapture &&
+                  !_isCapturingFinalPhoto) ...[
                 const SizedBox(height: 16),
                 Padding(
                   padding: const EdgeInsets.symmetric(
