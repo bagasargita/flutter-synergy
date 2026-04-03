@@ -18,6 +18,8 @@ class DailyCheckInCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isHoliday = attendance.dayType == 'PUBLIC_HOLIDAY';
+    /// Both times recorded — [dashboard_service] sets [DailyAttendanceInfo.primaryAction] to `Attendance`.
+    final dayComplete = attendance.primaryAction == 'Attendance';
 
     return Container(
       width: double.infinity,
@@ -165,29 +167,27 @@ class DailyCheckInCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                if ((attendance.timesheet != null &&
-                        attendance.timesheet!.isNotEmpty) ||
-                    (attendance.attendanceStatus != null &&
-                        attendance.attendanceStatus!.isNotEmpty)) ...[
-                  const SizedBox(height: 13),
-                ],
-                // const SizedBox(height: 20),
+                const SizedBox(height: 20),
                 // Action button
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed: () {
-                      if (attendance.primaryAction == 'Check In') {
-                        onCheckIn?.call();
-                      } else if (attendance.primaryAction == 'Check Out') {
-                        onCheckOut?.call();
-                      } else {
-                        (onCheckOut ?? onCheckIn)?.call();
-                      }
-                    },
+                    onPressed: dayComplete
+                        ? null
+                        : () {
+                            if (attendance.primaryAction == 'Check In') {
+                              onCheckIn?.call();
+                            } else if (attendance.primaryAction == 'Check Out') {
+                              onCheckOut?.call();
+                            } else {
+                              (onCheckOut ?? onCheckIn)?.call();
+                            }
+                          },
                     style: FilledButton.styleFrom(
                       backgroundColor: DashboardTheme.accentBlue,
                       foregroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.grey.shade300,
+                      disabledForegroundColor: Colors.grey.shade600,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
