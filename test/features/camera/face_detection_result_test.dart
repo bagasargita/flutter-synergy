@@ -1,7 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter_synergy/features/camera/face_detection_service.dart'
-    show FaceDetectionResult, kMinFaceWidthForCapturePx;
+    show FaceDetectionResult, kAndroidMinFaceWidthForCapturePx;
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -37,7 +37,7 @@ void main() {
     test('isGoodForCapture is false for small bounding box', () {
       final face = MockFace();
       when(() => face.boundingBox).thenReturn(
-        Rect.fromLTWH(0, 0, kMinFaceWidthForCapturePx - 1, 120),
+        Rect.fromLTWH(0, 0, kAndroidMinFaceWidthForCapturePx - 1, 120),
       );
 
       final result = FaceDetectionResult(

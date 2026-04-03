@@ -1,11 +1,12 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:io' show File;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_synergy/core/constants/app_constants.dart';
+import 'package:flutter_synergy/features/camera/camera_capture_config.dart';
 import 'package:flutter_synergy/features/camera/face_detection_service.dart';
 
 /// Flow: Camera → Face detection (ML Kit) → Liveness (blink) → Show Capture button → Return path for backend.
@@ -36,6 +37,7 @@ class _CameraPageState extends State<CameraPage> {
   bool _isProcessing = false;
   bool _isCapturingFinalPhoto = false;
   late FaceDetectionService _faceService;
+  late CameraCaptureConfig _captureConfig;
   // Blink liveness: require eyes open → closed → open (consecutive frames to avoid photo spoof).
   int _consecutiveEyesOpen = 0;
   int _consecutiveEyesClosed = 0;
@@ -60,20 +62,17 @@ class _CameraPageState extends State<CameraPage> {
 
   Future<void> _initCamera() async {
     try {
+      _captureConfig = CameraCaptureConfig.forCurrentPlatform();
       _cameras = await availableCameras();
       final frontList = _cameras
           .where((c) => c.lensDirection == CameraLensDirection.front)
           .toList();
       final camera = frontList.isNotEmpty ? frontList.first : _cameras.first;
 
-      // iOS only supports BGRA for the preview/capture pipeline; JPEG is for Android.
-      // Using JPEG on iOS can cause takePicture() to fail repeatedly (CameraException).
-      final format =
-          Platform.isIOS ? ImageFormatGroup.bgra8888 : ImageFormatGroup.jpeg;
       final controller = CameraController(
         camera,
-        ResolutionPreset.medium,
-        imageFormatGroup: format,
+        _captureConfig.resolutionPreset,
+        imageFormatGroup: _captureConfig.imageFormatGroup,
       );
       await controller.initialize();
       if (!mounted) return;
@@ -94,11 +93,10 @@ class _CameraPageState extends State<CameraPage> {
 
   void _startCaptureLoop() {
     _captureTimer?.cancel();
-    // iOS is stricter about back-to-back takePicture(); give the pipeline more time.
-    final interval = Platform.isIOS
-        ? const Duration(milliseconds: 900)
-        : const Duration(milliseconds: 600);
-    _captureTimer = Timer.periodic(interval, (_) => _captureAndAnalyze());
+    _captureTimer = Timer.periodic(
+      _captureConfig.analysisInterval,
+      (_) => _captureAndAnalyze(),
+    );
   }
 
   void _resetBlinkState() {
