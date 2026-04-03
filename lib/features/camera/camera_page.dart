@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_synergy/core/constants/app_constants.dart';
@@ -65,10 +66,14 @@ class _CameraPageState extends State<CameraPage> {
           .toList();
       final camera = frontList.isNotEmpty ? frontList.first : _cameras.first;
 
+      // iOS only supports BGRA for the preview/capture pipeline; JPEG is for Android.
+      // Using JPEG on iOS can cause takePicture() to fail repeatedly (CameraException).
+      final format =
+          Platform.isIOS ? ImageFormatGroup.bgra8888 : ImageFormatGroup.jpeg;
       final controller = CameraController(
         camera,
         ResolutionPreset.medium,
-        imageFormatGroup: ImageFormatGroup.jpeg,
+        imageFormatGroup: format,
       );
       await controller.initialize();
       if (!mounted) return;
@@ -89,10 +94,11 @@ class _CameraPageState extends State<CameraPage> {
 
   void _startCaptureLoop() {
     _captureTimer?.cancel();
-    _captureTimer = Timer.periodic(
-      const Duration(milliseconds: 600),
-      (_) => _captureAndAnalyze(),
-    );
+    // iOS is stricter about back-to-back takePicture(); give the pipeline more time.
+    final interval = Platform.isIOS
+        ? const Duration(milliseconds: 900)
+        : const Duration(milliseconds: 600);
+    _captureTimer = Timer.periodic(interval, (_) => _captureAndAnalyze());
   }
 
   void _resetBlinkState() {
@@ -184,7 +190,11 @@ class _CameraPageState extends State<CameraPage> {
         default:
           break;
       }
-    } catch (_) {}
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('CameraPage _captureAndAnalyze: $e\n$st');
+      }
+    }
     _isProcessing = false;
   }
 
@@ -201,10 +211,14 @@ class _CameraPageState extends State<CameraPage> {
       await File(file.path).copy(dest.path);
       if (!mounted) return;
       Navigator.of(context).pop<String?>(dest.path);
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to capture photo')),
+          SnackBar(
+            content: Text(
+              'Failed to capture photo${e is CameraException ? ': ${e.code}' : ''}',
+            ),
+          ),
         );
       }
     } finally {
