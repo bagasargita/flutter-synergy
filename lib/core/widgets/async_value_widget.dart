@@ -30,11 +30,9 @@ class AsyncValueWidget<T> extends StatelessWidget {
     return value.when(
       data: data,
       loading: loading ?? () => const LoadingWidget(),
-      error: error ??
-          (e, st) => ErrorDisplayWidget(
-                message: e.toString(),
-                onRetry: null,
-              ),
+      error:
+          error ??
+          (e, st) => ErrorDisplayWidget(message: e.toString(), onRetry: null),
     );
   }
 }
@@ -45,19 +43,13 @@ class LoadingWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: CircularProgressIndicator.adaptive(),
-    );
+    return const Center(child: CircularProgressIndicator.adaptive());
   }
 }
 
 /// Centered error message with an optional retry button.
 class ErrorDisplayWidget extends StatelessWidget {
-  const ErrorDisplayWidget({
-    super.key,
-    required this.message,
-    this.onRetry,
-  });
+  const ErrorDisplayWidget({super.key, required this.message, this.onRetry});
 
   final String message;
   final VoidCallback? onRetry;

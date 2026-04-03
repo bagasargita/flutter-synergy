@@ -1,0 +1,4 @@
+# https://docs.fastlane.tools/advanced/#appfile
+
+app_identifier("com.synergy.flutter_synergy")
+package_name("com.synergy.flutter_synergy")

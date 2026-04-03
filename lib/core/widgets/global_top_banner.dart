@@ -49,10 +49,7 @@ class GlobalTopBannerCard extends StatelessWidget {
       height: 44,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(
-          color: const Color(0xFF22C55E),
-          width: 2,
-        ),
+        border: Border.all(color: const Color(0xFF22C55E), width: 2),
       ),
       alignment: Alignment.center,
       child: const Icon(
@@ -73,11 +70,7 @@ class GlobalTopBannerCard extends StatelessWidget {
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
-      child: const Icon(
-        Icons.close_rounded,
-        color: Colors.white,
-        size: 24,
-      ),
+      child: const Icon(Icons.close_rounded, color: Colors.white, size: 24),
     );
   }
 
@@ -100,10 +93,7 @@ class GlobalTopBannerCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            if (leading != null) ...[
-              leading!,
-              const SizedBox(width: 14),
-            ],
+            if (leading != null) ...[leading!, const SizedBox(width: 14)],
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,8 +162,12 @@ abstract final class GlobalTopBanner {
     double topPadding = 10,
     double horizontalMargin = 16,
     double borderRadius = 20,
-    EdgeInsetsGeometry contentPadding =
-        const EdgeInsets.fromLTRB(14, 12, 4, 12),
+    EdgeInsetsGeometry contentPadding = const EdgeInsets.fromLTRB(
+      14,
+      12,
+      4,
+      12,
+    ),
   }) {
     final overlay = rootNavigatorKey.currentState?.overlay;
     if (overlay == null) {

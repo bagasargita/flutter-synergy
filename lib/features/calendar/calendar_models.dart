@@ -51,6 +51,7 @@ class CalendarLegendItem {
   final String key;
   final String label;
   final Color dotColor;
+
   /// `circle`, `triangle`, or `square` from API; defaults to circle.
   final String? symbol;
 

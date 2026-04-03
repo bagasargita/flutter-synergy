@@ -1,3 +1,6 @@
+# Ruby / Fastlane (CI uses bundle config path vendor/bundle)
+vendor/bundle/
+
 # Miscellaneous
 *.class
 *.log

@@ -118,7 +118,10 @@ class _GlobalNavItem extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: verticalPadding),
+        padding: EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: verticalPadding,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,

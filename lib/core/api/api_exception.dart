@@ -8,11 +8,7 @@ class ApiException implements Exception {
   final int? statusCode;
   final dynamic data;
 
-  const ApiException({
-    required this.message,
-    this.statusCode,
-    this.data,
-  });
+  const ApiException({required this.message, this.statusCode, this.data});
 
   factory ApiException.fromDioException(DioException error) {
     switch (error.type) {

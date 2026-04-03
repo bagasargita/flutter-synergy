@@ -1,0 +1,7 @@
+# Copy to key.properties (gitignored) next to this file — never commit real values.
+# Keystore file path is relative to the android/ directory.
+
+storePassword=your-keystore-password
+keyPassword=your-key-password
+keyAlias=upload
+storeFile=upload-keystore.jks

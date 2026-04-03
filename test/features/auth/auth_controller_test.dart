@@ -43,10 +43,12 @@ void main() {
         refreshExpiresAt: '2026-04-26T14:11:34.297+07:00',
       );
 
-      when(() => mockService.login(
-            username: any(named: 'username'),
-            password: any(named: 'password'),
-          )).thenAnswer((_) async => mockUser);
+      when(
+        () => mockService.login(
+          username: any(named: 'username'),
+          password: any(named: 'password'),
+        ),
+      ).thenAnswer((_) async => mockUser);
 
       const mockProfile = CurrentUserProfile(
         fullName: 'Mobile Developer',
@@ -57,16 +59,14 @@ void main() {
         workPlaces: [],
         selfieRequired: true,
       );
-      when(() => mockService.fetchCurrentUser())
-          .thenAnswer((_) async => mockProfile);
+      when(
+        () => mockService.fetchCurrentUser(),
+      ).thenAnswer((_) async => mockProfile);
 
       final states = <AuthState>[];
       controller.addListener(states.add);
 
-      await controller.login(
-        username: 'test@example.com',
-        password: 'pass123',
-      );
+      await controller.login(username: 'test@example.com', password: 'pass123');
 
       // Should have gone through loading -> authenticated.
       expect(states.any((s) => s.status == AuthStatus.loading), isTrue);
@@ -75,10 +75,12 @@ void main() {
     });
 
     test('login sets error state on failure', () async {
-      when(() => mockService.login(
-            username: any(named: 'username'),
-            password: any(named: 'password'),
-          )).thenThrow(Exception('Invalid credentials'));
+      when(
+        () => mockService.login(
+          username: any(named: 'username'),
+          password: any(named: 'password'),
+        ),
+      ).thenThrow(Exception('Invalid credentials'));
 
       await controller.login(username: 'bad@email.com', password: 'wrong');
 

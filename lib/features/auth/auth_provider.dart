@@ -10,8 +10,9 @@ final authServiceProvider = Provider<AuthService>((ref) {
 });
 
 /// Provides [AuthController] – the state layer for authentication.
-final authControllerProvider =
-    StateNotifierProvider<AuthController, AuthState>((ref) {
-  final authService = ref.watch(authServiceProvider);
-  return AuthController(authService);
-});
+final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
+  (ref) {
+    final authService = ref.watch(authServiceProvider);
+    return AuthController(authService);
+  },
+);

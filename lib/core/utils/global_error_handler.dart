@@ -25,15 +25,12 @@ class GlobalErrorHandler {
     };
 
     // Catch errors that escape the Flutter framework (Futures, Isolates).
-    runZonedGuarded(
-      runApp,
-      (error, stackTrace) {
-        AppLogger.error(
-          'Uncaught async error',
-          error: error,
-          stackTrace: stackTrace,
-        );
-      },
-    );
+    runZonedGuarded(runApp, (error, stackTrace) {
+      AppLogger.error(
+        'Uncaught async error',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    });
   }
 }

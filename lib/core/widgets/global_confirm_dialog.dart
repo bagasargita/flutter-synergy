@@ -53,12 +53,14 @@ class _GlobalConfirmDialog extends StatelessWidget {
     final cs = theme.colorScheme;
     final tt = theme.textTheme;
 
-    final dialogShape = theme.dialogTheme.shape ??
+    final dialogShape =
+        theme.dialogTheme.shape ??
         RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppConstants.defaultRadius),
         );
 
-    final surface = theme.dialogTheme.backgroundColor ?? cs.surfaceContainerHigh;
+    final surface =
+        theme.dialogTheme.backgroundColor ?? cs.surfaceContainerHigh;
 
     final confirmBg = confirmIsDestructive ? cs.error : cs.primary;
     final confirmFg = confirmIsDestructive ? cs.onError : cs.onPrimary;
@@ -75,18 +77,13 @@ class _GlobalConfirmDialog extends StatelessWidget {
       ),
       content: Text(
         message,
-        style: tt.bodyLarge?.copyWith(
-          height: 1.4,
-          color: cs.onSurfaceVariant,
-        ),
+        style: tt.bodyLarge?.copyWith(height: 1.4, color: cs.onSurfaceVariant),
       ),
       actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          style: TextButton.styleFrom(
-            foregroundColor: cs.onSurfaceVariant,
-          ),
+          style: TextButton.styleFrom(foregroundColor: cs.onSurfaceVariant),
           child: Text(
             cancelText,
             style: const TextStyle(fontWeight: FontWeight.w600),

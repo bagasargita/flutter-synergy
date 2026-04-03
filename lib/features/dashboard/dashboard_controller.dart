@@ -8,11 +8,7 @@ class DashboardState {
   final DashboardData? data;
   final String? errorMessage;
 
-  const DashboardState({
-    this.isLoading = false,
-    this.data,
-    this.errorMessage,
-  });
+  const DashboardState({this.isLoading = false, this.data, this.errorMessage});
 
   DashboardState copyWith({
     bool? isLoading,
@@ -43,10 +39,7 @@ class DashboardController extends StateNotifier<DashboardState> {
       AppLogger.info('Dashboard data loaded');
     } catch (e) {
       final message = e is ApiException ? e.message : e.toString();
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: message,
-      );
+      state = state.copyWith(isLoading: false, errorMessage: message);
       AppLogger.error('Failed to load dashboard', error: e);
     }
   }

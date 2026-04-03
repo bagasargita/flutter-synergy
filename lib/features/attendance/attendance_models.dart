@@ -1,8 +1,5 @@
 /// Whether the user is submitting [checkIn] or [checkOut] attendance.
-enum AttendanceSubmitKind {
-  checkIn,
-  checkOut,
-}
+enum AttendanceSubmitKind { checkIn, checkOut }
 
 extension AttendanceSubmitKindApi on AttendanceSubmitKind {
   /// API expects `checkin` / `checkout` for [remark] (see mobile form-data).
@@ -12,8 +9,7 @@ extension AttendanceSubmitKindApi on AttendanceSubmitKind {
   String get timeFieldName =>
       this == AttendanceSubmitKind.checkIn ? 'check_in_at' : 'check_out_at';
 
-  String get path =>
-      this == AttendanceSubmitKind.checkIn
-          ? '/attendances/check_in'
-          : '/attendances/check_out';
+  String get path => this == AttendanceSubmitKind.checkIn
+      ? '/attendances/check_in'
+      : '/attendances/check_out';
 }

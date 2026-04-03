@@ -8,7 +8,8 @@ import 'package:flutter_synergy/features/auth/auth_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _WidgetTestAuthController extends AuthController {
-  _WidgetTestAuthController() : super(_NoopAuthService(), restoreFromStorage: false) {
+  _WidgetTestAuthController()
+    : super(_NoopAuthService(), restoreFromStorage: false) {
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 }
@@ -61,7 +62,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          authControllerProvider.overrideWith((ref) => _WidgetTestAuthController()),
+          authControllerProvider.overrideWith(
+            (ref) => _WidgetTestAuthController(),
+          ),
         ],
         child: const MaterialApp(home: AuthPage()),
       ),

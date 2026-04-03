@@ -65,7 +65,10 @@ void main() {
       );
 
       final mapped = ApiException.fromDioException(ex);
-      expect(mapped.message, 'Unable to connect. Check your internet connection.');
+      expect(
+        mapped.message,
+        'Unable to connect. Check your internet connection.',
+      );
     });
   });
 }

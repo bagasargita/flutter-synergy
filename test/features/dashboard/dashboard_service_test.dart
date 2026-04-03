@@ -53,51 +53,49 @@ void main() {
           queryParameters: any(named: 'queryParameters'),
         ),
       ).thenAnswer(
-        (_) async => _response(
-          <String, dynamic>{
-            'success': true,
-            'data': <String, dynamic>{
-              'articles': <dynamic>[
-                <String, dynamic>{
-                  'id': 1,
-                  'title': 'Policy Update',
-                  'file_url':
-                      'https://sbs.synergyengineering.comhttps://storage.googleapis.com/img.webp',
-                },
-              ],
-              'next_page_url': 'https://api.example.com/articles?page=2',
-            },
+        (_) async => _response(<String, dynamic>{
+          'success': true,
+          'data': <String, dynamic>{
+            'articles': <dynamic>[
+              <String, dynamic>{
+                'id': 1,
+                'title': 'Policy Update',
+                'file_url':
+                    'https://sbs.synergyengineering.comhttps://storage.googleapis.com/img.webp',
+              },
+            ],
+            'next_page_url': 'https://api.example.com/articles?page=2',
           },
-          path: '/articles',
-        ),
+        }, path: '/articles'),
       );
 
       final result = await service.fetchArticlesPage(1);
 
       expect(result.items, hasLength(1));
       expect(result.items.first.id, '1');
-      expect(result.items.first.fileUrl, 'https://storage.googleapis.com/img.webp');
+      expect(
+        result.items.first.fileUrl,
+        'https://storage.googleapis.com/img.webp',
+      );
       expect(result.hasMore, isTrue);
     });
   });
 
   group('DashboardService.fetchDashboardData', () {
     test('maps monthly summary + daily not found into check-in card', () async {
-      when(() => api.get<Map<String, dynamic>>('/attendances/monthly_summary'))
-          .thenAnswer(
-        (_) async => _response(
-          <String, dynamic>{
-            'success': true,
-            'data': <String, dynamic>{
-              'lateness': 1,
-              'short_of_workhours': 0,
-              'absences': 2,
-              'works': 10,
-              'timesheets': '80:00',
-            },
+      when(
+        () => api.get<Map<String, dynamic>>('/attendances/monthly_summary'),
+      ).thenAnswer(
+        (_) async => _response(<String, dynamic>{
+          'success': true,
+          'data': <String, dynamic>{
+            'lateness': 1,
+            'short_of_workhours': 0,
+            'absences': 2,
+            'works': 10,
+            'timesheets': '80:00',
           },
-          path: '/attendances/monthly_summary',
-        ),
+        }, path: '/attendances/monthly_summary'),
       );
 
       when(
@@ -106,13 +104,10 @@ void main() {
           queryParameters: any(named: 'queryParameters'),
         ),
       ).thenAnswer(
-        (_) async => _response(
-          <String, dynamic>{
-            'success': true,
-            'data': <String, dynamic>{'articles': <dynamic>[]},
-          },
-          path: '/articles',
-        ),
+        (_) async => _response(<String, dynamic>{
+          'success': true,
+          'data': <String, dynamic>{'articles': <dynamic>[]},
+        }, path: '/articles'),
       );
 
       when(

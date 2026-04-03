@@ -27,7 +27,7 @@ class _NoopAuthService implements AuthService {
 
 class TestAuthController extends AuthController {
   TestAuthController(AuthState initial)
-      : super(_NoopAuthService(), restoreFromStorage: false) {
+    : super(_NoopAuthService(), restoreFromStorage: false) {
     state = initial;
   }
 
@@ -78,9 +78,7 @@ void main() {
   }) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          authControllerProvider.overrideWith((ref) => controller),
-        ],
+        overrides: [authControllerProvider.overrideWith((ref) => controller)],
         child: const MaterialApp(home: AuthPage()),
       ),
     );

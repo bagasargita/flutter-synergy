@@ -43,24 +43,21 @@ void main() {
           data: any(named: 'data'),
         ),
       ).thenAnswer(
-        (_) async => _response(
-          <String, dynamic>{
-            'success': true,
-            'data': <String, dynamic>{
-              'id': 42,
-              'name': 'Jane Doe',
-              'access': <String, dynamic>{
-                'token': 'access_123',
-                'expires_at': '2026-04-03T12:00:00+07:00',
-              },
-              'refresh': <String, dynamic>{
-                'token': 'refresh_123',
-                'expires_at': '2026-05-03T12:00:00+07:00',
-              },
+        (_) async => _response(<String, dynamic>{
+          'success': true,
+          'data': <String, dynamic>{
+            'id': 42,
+            'name': 'Jane Doe',
+            'access': <String, dynamic>{
+              'token': 'access_123',
+              'expires_at': '2026-04-03T12:00:00+07:00',
+            },
+            'refresh': <String, dynamic>{
+              'token': 'refresh_123',
+              'expires_at': '2026-05-03T12:00:00+07:00',
             },
           },
-          path: '/sign_in',
-        ),
+        }, path: '/sign_in'),
       );
 
       final user = await service.login(username: 'jane', password: 'secret');
@@ -79,18 +76,15 @@ void main() {
           data: any(named: 'data'),
         ),
       ).thenAnswer(
-        (_) async => _response(
-          <String, dynamic>{
-            'success': true,
-            'data': <String, dynamic>{
-              'id': 'u1',
-              'name': 'Jane',
-              'access': <String, dynamic>{},
-              'refresh': <String, dynamic>{},
-            },
+        (_) async => _response(<String, dynamic>{
+          'success': true,
+          'data': <String, dynamic>{
+            'id': 'u1',
+            'name': 'Jane',
+            'access': <String, dynamic>{},
+            'refresh': <String, dynamic>{},
           },
-          path: '/sign_in',
-        ),
+        }, path: '/sign_in'),
       );
 
       expect(
@@ -109,25 +103,22 @@ void main() {
   group('AuthService.fetchCurrentUser', () {
     test('parses nested me payload', () async {
       when(() => api.get<Map<String, dynamic>>('/users/me')).thenAnswer(
-        (_) async => _response(
-          <String, dynamic>{
-            'success': true,
-            'data': <String, dynamic>{
-              'me': <String, dynamic>{
-                'full_name': 'John',
-                'company_name': 'SE',
-                'discipline_name': 'IT',
-                'title_name': 'Engineer',
-                'check_in_anywhere': true,
-                'selfie_required': false,
-                'work_places': <dynamic>[
-                  <String, dynamic>{'label': 'HQ', 'coordinates': '1;2;3;4;5;6'},
-                ],
-              },
+        (_) async => _response(<String, dynamic>{
+          'success': true,
+          'data': <String, dynamic>{
+            'me': <String, dynamic>{
+              'full_name': 'John',
+              'company_name': 'SE',
+              'discipline_name': 'IT',
+              'title_name': 'Engineer',
+              'check_in_anywhere': true,
+              'selfie_required': false,
+              'work_places': <dynamic>[
+                <String, dynamic>{'label': 'HQ', 'coordinates': '1;2;3;4;5;6'},
+              ],
             },
           },
-          path: '/users/me',
-        ),
+        }, path: '/users/me'),
       );
 
       final profile = await service.fetchCurrentUser();
@@ -142,10 +133,7 @@ void main() {
     test('throws when API says success=false', () async {
       when(() => api.get<Map<String, dynamic>>('/users/me')).thenAnswer(
         (_) async => _response(
-          <String, dynamic>{
-            'success': false,
-            'message': 'Unauthorized',
-          },
+          <String, dynamic>{'success': false, 'message': 'Unauthorized'},
           statusCode: 401,
           path: '/users/me',
         ),
@@ -154,7 +142,11 @@ void main() {
       expect(
         () => service.fetchCurrentUser(),
         throwsA(
-          isA<ApiException>().having((e) => e.message, 'message', 'Unauthorized'),
+          isA<ApiException>().having(
+            (e) => e.message,
+            'message',
+            'Unauthorized',
+          ),
         ),
       );
     });

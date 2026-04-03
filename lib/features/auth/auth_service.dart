@@ -10,10 +10,7 @@ class WorkPlace {
   final String label;
   final String coordinates;
 
-  const WorkPlace({
-    required this.label,
-    required this.coordinates,
-  });
+  const WorkPlace({required this.label, required this.coordinates});
 
   factory WorkPlace.fromJson(Map<String, dynamic> json) {
     return WorkPlace(
@@ -22,10 +19,7 @@ class WorkPlace {
     );
   }
 
-  Map<String, dynamic> toJson() => {
-        'label': label,
-        'coordinates': coordinates,
-      };
+  Map<String, dynamic> toJson() => {'label': label, 'coordinates': coordinates};
 }
 
 /// Current user profile from `GET /users/me`.
@@ -70,14 +64,14 @@ class CurrentUserProfile {
   }
 
   Map<String, dynamic> toJson() => {
-        'full_name': fullName,
-        'company_name': companyName,
-        'discipline_name': disciplineName,
-        'title_name': titleName,
-        'check_in_anywhere': checkInAnywhere,
-        'work_places': workPlaces.map((e) => e.toJson()).toList(),
-        'selfie_required': selfieRequired,
-      };
+    'full_name': fullName,
+    'company_name': companyName,
+    'discipline_name': disciplineName,
+    'title_name': titleName,
+    'check_in_anywhere': checkInAnywhere,
+    'work_places': workPlaces.map((e) => e.toJson()).toList(),
+    'selfie_required': selfieRequired,
+  };
 
   /// Persisted shape: `{ "me": { ...profile fields } }`.
   Map<String, dynamic> toMeEnvelope() => {'me': toJson()};
@@ -184,10 +178,7 @@ class AuthService {
 
       final response = await _api.post<Map<String, dynamic>>(
         '/sign_in',
-        data: {
-          'username': username,
-          'password': password,
-        },
+        data: {'username': username, 'password': password},
       );
 
       final body = response.data ?? <String, dynamic>{};
@@ -233,7 +224,8 @@ class AuthService {
       final body = response.data ?? <String, dynamic>{};
       if (body['success'] != true) {
         throw ApiException(
-          message: (body['message'] ?? 'Failed to load user profile').toString(),
+          message: (body['message'] ?? 'Failed to load user profile')
+              .toString(),
           statusCode: response.statusCode,
           data: body,
         );

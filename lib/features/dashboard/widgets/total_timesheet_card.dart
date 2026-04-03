@@ -4,10 +4,7 @@ import 'package:flutter_synergy/features/dashboard/widgets/dashboard_theme.dart'
 
 /// Single card showing "Total Timesheet" with checkmark icon and total hours.
 class TotalTimesheetCard extends StatelessWidget {
-  const TotalTimesheetCard({
-    super.key,
-    required this.totalTimesheet,
-  });
+  const TotalTimesheetCard({super.key, required this.totalTimesheet});
 
   final TotalTimesheetInfo totalTimesheet;
 

@@ -44,10 +44,8 @@ class AuthController extends StateNotifier<AuthState> {
   final AuthService _authService;
   final bool restoreFromStorage;
 
-  AuthController(
-    this._authService, {
-    this.restoreFromStorage = true,
-  }) : super(const AuthState()) {
+  AuthController(this._authService, {this.restoreFromStorage = true})
+    : super(const AuthState()) {
     if (restoreFromStorage) {
       restoreSession();
     }
@@ -113,8 +111,9 @@ class AuthController extends StateNotifier<AuthState> {
         await TokenStorage.saveUserProfileJson(profile.toStorageJsonString());
         await TokenStorage.saveUsername(user.username);
 
-        final displayName =
-            profile.fullName.isNotEmpty ? profile.fullName : user.name;
+        final displayName = profile.fullName.isNotEmpty
+            ? profile.fullName
+            : user.name;
 
         state = state.copyWith(
           status: AuthStatus.authenticated,
@@ -126,18 +125,12 @@ class AuthController extends StateNotifier<AuthState> {
       } catch (e) {
         final message = e is ApiException ? e.message : e.toString();
         await TokenStorage.clearToken();
-        state = state.copyWith(
-          status: AuthStatus.error,
-          errorMessage: message,
-        );
+        state = state.copyWith(status: AuthStatus.error, errorMessage: message);
         AppLogger.error('Failed to load user profile after login', error: e);
       }
     } catch (e) {
       final message = e is ApiException ? e.message : e.toString();
-      state = state.copyWith(
-        status: AuthStatus.error,
-        errorMessage: message,
-      );
+      state = state.copyWith(status: AuthStatus.error, errorMessage: message);
       AppLogger.error('Login failed', error: e);
     }
   }

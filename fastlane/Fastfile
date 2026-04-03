@@ -1,0 +1,97 @@
+# frozen_string_literal: true
+
+# Fastlane lanes for store uploads. Used by GitLab CI (see docs/GITLAB_CI.md).
+
+default_platform(:android)
+
+def repo_root
+  File.expand_path("..", __dir__)
+end
+
+def android_aab_path
+  File.join(repo_root, "build", "app", "outputs", "bundle", "release", "app-release.aab")
+end
+
+def ios_ipa_path
+  pattern = File.join(repo_root, "build", "ios", "ipa", "*.ipa")
+  Dir.glob(pattern).max_by { |p| File.mtime(p) }
+end
+
+platform :android do
+  desc "Upload the release AAB to Google Play (track from PLAY_STORE_TRACK, default internal)"
+  lane :deploy_play_store do
+    json = ENV["PLAY_STORE_JSON_KEY_DATA"]
+    UI.user_error!("Set CI variable PLAY_STORE_JSON_KEY_DATA (full JSON of the Play service account key)") if json.to_s.strip.empty?
+
+    unless File.file?(android_aab_path)
+      UI.user_error!("AAB not found at #{android_aab_path}. Run flutter build appbundle --release first.")
+    end
+
+    upload_to_play_store(
+      json_key_data: json,
+      aab: android_aab_path,
+      track: ENV.fetch("PLAY_STORE_TRACK", "internal"),
+      release_status: ENV.fetch("PLAY_RELEASE_STATUS", "completed"),
+      skip_upload_apk: true,
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+end
+
+platform :ios do
+  desc "Install App Store distribution certs/profiles (requires fastlane match setup)"
+  lane :sync_match do
+    match(
+      type: "appstore",
+      readonly: true,
+      app_identifier: "com.synergy.flutter_synergy"
+    )
+  end
+
+  desc "Build iOS IPA (assumes signing is already configured on the runner, e.g. match)"
+  lane :build_ipa do
+    Dir.chdir(repo_root) do
+      sh("flutter", "pub", "get")
+      export_plist = File.join("ios", "ExportOptions.plist")
+      UI.user_error!("Missing #{export_plist} (set teamID; CI can sed REPLACE_WITH_TEAM_ID)") unless File.file?(export_plist)
+      sh("flutter", "build", "ipa", "--release", "--export-options-plist=#{export_plist}")
+    end
+  end
+
+  desc "Upload latest IPA to TestFlight (API key via env)"
+  lane :deploy_testflight do
+    key_id = ENV["APP_STORE_CONNECT_KEY_ID"]
+    issuer_id = ENV["APP_STORE_CONNECT_ISSUER_ID"]
+    key_content = ENV["APP_STORE_CONNECT_KEY_CONTENT"]
+
+    UI.user_error!("Set APP_STORE_CONNECT_KEY_ID, APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_KEY_CONTENT") if [key_id, issuer_id, key_content].any? { |v| v.to_s.strip.empty? }
+
+    api_key = app_store_connect_api_key(
+      key_id: key_id,
+      issuer_id: issuer_id,
+      key_content: key_content,
+      is_key_content_base64: true,
+      duration: 1200,
+      in_house: false
+    )
+
+    ipa = ios_ipa_path
+    UI.user_error!("No IPA under build/ios/ipa/. Run build_ipa first.") if ipa.nil? || !File.file?(ipa)
+
+    upload_to_testflight(
+      api_key: api_key,
+      ipa: ipa,
+      skip_waiting_for_build_processing: true
+    )
+  end
+
+  desc "Match + build + upload (macOS CI with MATCH_* variables configured)"
+  lane :deploy_ios_ci do
+    sync_match if ENV["MATCH_GIT_URL"]
+    build_ipa
+    deploy_testflight
+  end
+end

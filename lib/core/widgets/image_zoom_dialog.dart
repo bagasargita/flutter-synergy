@@ -25,10 +25,7 @@ Future<void> showImageZoomDialog({
 }
 
 class _ImageZoomDialogBody extends StatelessWidget {
-  const _ImageZoomDialogBody({
-    this.networkUrl,
-    this.assetPath,
-  });
+  const _ImageZoomDialogBody({this.networkUrl, this.assetPath});
 
   final String? networkUrl;
   final String? assetPath;
@@ -80,17 +77,15 @@ class _ImageZoomDialogBody extends StatelessWidget {
                               ),
                             );
                           },
-                          errorBuilder: (_, _, _) => const _ZoomError(
-                            message: 'Could not load image',
-                          ),
+                          errorBuilder: (_, _, _) =>
+                              const _ZoomError(message: 'Could not load image'),
                         )
                       : Image.asset(
                           assetPath!,
                           fit: BoxFit.contain,
                           alignment: Alignment.center,
-                          errorBuilder: (_, _, _) => const _ZoomError(
-                            message: 'Could not load image',
-                          ),
+                          errorBuilder: (_, _, _) =>
+                              const _ZoomError(message: 'Could not load image'),
                         ),
                 ),
               ),
@@ -131,10 +126,7 @@ class _ZoomError extends StatelessWidget {
         children: [
           const Icon(Icons.broken_image_outlined, size: 56, color: fg),
           const SizedBox(height: 12),
-          Text(
-            message,
-            style: const TextStyle(color: fg, fontSize: 15),
-          ),
+          Text(message, style: const TextStyle(color: fg, fontSize: 15)),
         ],
       ),
     );

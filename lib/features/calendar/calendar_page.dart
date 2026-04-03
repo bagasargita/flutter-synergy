@@ -35,8 +35,9 @@ class CalendarTab extends ConsumerWidget {
         body: Center(
           child: ErrorDisplayWidget(
             message: state.errorMessage!,
-            onRetry: () =>
-                ref.read(calendarControllerProvider.notifier).loadCurrentMonth(),
+            onRetry: () => ref
+                .read(calendarControllerProvider.notifier)
+                .loadCurrentMonth(),
           ),
         ),
       );
@@ -64,9 +65,8 @@ class CalendarTab extends ConsumerWidget {
                 .loadPreviousMonth(),
             onNextMonth: () =>
                 ref.read(calendarControllerProvider.notifier).loadNextMonth(),
-            onDaySelected: (day) => ref
-                .read(calendarControllerProvider.notifier)
-                .selectDay(day),
+            onDaySelected: (day) =>
+                ref.read(calendarControllerProvider.notifier).selectDay(day),
           ),
           const SizedBox(height: 16),
           CalendarDaySummaryCard(

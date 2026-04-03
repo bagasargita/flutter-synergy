@@ -19,7 +19,9 @@ void main() {
 
     test('isGoodForCapture requires single face, open eyes, and min size', () {
       final face = MockFace();
-      when(() => face.boundingBox).thenReturn(const Rect.fromLTWH(0, 0, 120, 120));
+      when(
+        () => face.boundingBox,
+      ).thenReturn(const Rect.fromLTWH(0, 0, 120, 120));
 
       final result = FaceDetectionResult(
         faceCount: 1,
@@ -33,7 +35,9 @@ void main() {
 
     test('isGoodForCapture is false for small bounding box', () {
       final face = MockFace();
-      when(() => face.boundingBox).thenReturn(const Rect.fromLTWH(0, 0, 70, 120));
+      when(
+        () => face.boundingBox,
+      ).thenReturn(const Rect.fromLTWH(0, 0, 70, 120));
 
       final result = FaceDetectionResult(
         faceCount: 1,

@@ -64,7 +64,9 @@ void main() {
           today: any(named: 'today'),
         ),
       ).thenAnswer((_) async => monthData);
-      when(() => service.buildAttendanceForDay(any())).thenReturn(_attendance(''));
+      when(
+        () => service.buildAttendanceForDay(any()),
+      ).thenReturn(_attendance(''));
       when(() => service.timesheetDisplayFor(any())).thenReturn('08:00');
 
       final controller = CalendarController(service);

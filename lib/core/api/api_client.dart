@@ -23,10 +23,7 @@ class ApiClient {
       ),
     );
 
-    _dio.interceptors.addAll([
-      AuthInterceptor(_dio),
-      LoggingInterceptor(),
-    ]);
+    _dio.interceptors.addAll([AuthInterceptor(_dio), LoggingInterceptor()]);
   }
 
   Dio get dio => _dio;

@@ -18,6 +18,7 @@ class DailyAttendanceInfo {
   final String primaryAction; // 'Check In' | 'Check Out' | 'Attendance'
   /// API `attendance` field, e.g. `underhour`.
   final String? attendanceStatus;
+
   /// API `timesheet` duration for the day, e.g. `03:00`.
   final String? timesheet;
 
@@ -158,10 +159,9 @@ DailyAttendanceInfo _mapDailyAttendanceToCard({
   final holidayRaw = data['holiday'];
   final isHoliday = _isHolidayPresent(holidayRaw);
   final holidayName = _holidayLabel(holidayRaw);
-  final attendanceStatus =
-      (data['attendance'] ?? '').toString().trim().isEmpty
-          ? null
-          : data['attendance'].toString();
+  final attendanceStatus = (data['attendance'] ?? '').toString().trim().isEmpty
+      ? null
+      : data['attendance'].toString();
   final timesheet = (data['timesheet'] ?? '').toString().trim().isEmpty
       ? null
       : data['timesheet'].toString();
@@ -213,6 +213,7 @@ class Announcement {
   final String title;
   final String date;
   final String? imageAsset;
+
   /// Remote banner URL from `/articles` API (`file_url`).
   final String? fileUrl;
 
@@ -227,10 +228,7 @@ class Announcement {
 
 /// One page from `GET /articles?page=`.
 class ArticlesPageResult {
-  const ArticlesPageResult({
-    required this.items,
-    required this.hasMore,
-  });
+  const ArticlesPageResult({required this.items, required this.hasMore});
 
   final List<Announcement> items;
   final bool hasMore;
@@ -273,14 +271,7 @@ List<Announcement> _announcementsFromArticlesJson(
         break;
       }
     }
-    out.add(
-      Announcement(
-        id: id,
-        title: title,
-        date: date,
-        fileUrl: fileUrl,
-      ),
-    );
+    out.add(Announcement(id: id, title: title, date: date, fileUrl: fileUrl));
   }
   return out;
 }
@@ -463,9 +454,10 @@ class DashboardService {
 
       if (!monthlySummarySuccess) {
         throw ApiException(
-          message: (monthlySummaryBody['message'] ??
-                  'Failed to load monthly attendance summary.')
-              .toString(),
+          message:
+              (monthlySummaryBody['message'] ??
+                      'Failed to load monthly attendance summary.')
+                  .toString(),
           statusCode: monthlySummaryResponse.statusCode,
           data: monthlySummaryBody,
         );
@@ -473,13 +465,14 @@ class DashboardService {
 
       final monthlySummaryData =
           monthlySummaryBody['data'] as Map<String, dynamic>? ??
-              <String, dynamic>{};
+          <String, dynamic>{};
       final lateness = (monthlySummaryData['lateness'] as num?)?.toInt() ?? 0;
       final shortOfWorkhours =
           (monthlySummaryData['short_of_workhours'] as num?)?.toInt() ?? 0;
       final absences = (monthlySummaryData['absences'] as num?)?.toInt() ?? 0;
       final works = (monthlySummaryData['works'] as num?)?.toInt() ?? 0;
-      final timesheets = (monthlySummaryData['timesheets'] ?? '00:00').toString();
+      final timesheets = (monthlySummaryData['timesheets'] ?? '00:00')
+          .toString();
 
       final articlesBody = articlesResponse.data ?? <String, dynamic>{};
       final articlesSuccess = articlesBody['success'] == true;
@@ -549,7 +542,6 @@ class DashboardService {
         ],
         announcements: announcements,
       );
-
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
     }

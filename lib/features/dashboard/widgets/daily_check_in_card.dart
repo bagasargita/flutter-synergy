@@ -18,6 +18,7 @@ class DailyCheckInCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isHoliday = attendance.dayType == 'PUBLIC_HOLIDAY';
+
     /// Both times recorded — [dashboard_service] sets [DailyAttendanceInfo.primaryAction] to `Attendance`.
     final dayComplete = attendance.primaryAction == 'Attendance';
 
@@ -177,7 +178,8 @@ class DailyCheckInCard extends StatelessWidget {
                         : () {
                             if (attendance.primaryAction == 'Check In') {
                               onCheckIn?.call();
-                            } else if (attendance.primaryAction == 'Check Out') {
+                            } else if (attendance.primaryAction ==
+                                'Check Out') {
                               onCheckOut?.call();
                             } else {
                               (onCheckOut ?? onCheckIn)?.call();

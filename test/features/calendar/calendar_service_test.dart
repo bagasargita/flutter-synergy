@@ -37,48 +37,39 @@ void main() {
           queryParameters: any(named: 'queryParameters'),
         ),
       ).thenAnswer(
-        (_) async => _response(
-          <String, dynamic>{
-            'success': true,
-            'data': <dynamic>[
-              <String, dynamic>{
-                'date': '2026-04-03',
-                'attendance': 'late',
-                'check_in': '2026-04-03T08:30:00+07:00',
-                'check_out': '2026-04-03T17:31:00+07:00',
-                'timesheet': '08:01',
-              },
-              <String, dynamic>{
-                'date': '2026-04-05',
-                'holiday': 'Sunday',
-              },
-            ],
-          },
-          path: '/attendances/monthly',
-        ),
+        (_) async => _response(<String, dynamic>{
+          'success': true,
+          'data': <dynamic>[
+            <String, dynamic>{
+              'date': '2026-04-03',
+              'attendance': 'late',
+              'check_in': '2026-04-03T08:30:00+07:00',
+              'check_out': '2026-04-03T17:31:00+07:00',
+              'timesheet': '08:01',
+            },
+            <String, dynamic>{'date': '2026-04-05', 'holiday': 'Sunday'},
+          ],
+        }, path: '/attendances/monthly'),
       );
       when(() => api.get<Map<String, dynamic>>('/calendar_legends')).thenAnswer(
-        (_) async => _response(
-          <String, dynamic>{
-            'success': true,
-            'data': <dynamic>[
-              <String, dynamic>{
-                'name': 'today',
-                'label': 'Today',
-                'color': '#2563EB',
-                'symbol': 'circle',
-              },
-              <String, dynamic>{
-                'name': 'attendance',
-                'status': 'late',
-                'label': 'Late',
-                'color': '#F59E0B',
-                'symbol': 'triangle',
-              },
-            ],
-          },
-          path: '/calendar_legends',
-        ),
+        (_) async => _response(<String, dynamic>{
+          'success': true,
+          'data': <dynamic>[
+            <String, dynamic>{
+              'name': 'today',
+              'label': 'Today',
+              'color': '#2563EB',
+              'symbol': 'circle',
+            },
+            <String, dynamic>{
+              'name': 'attendance',
+              'status': 'late',
+              'label': 'Late',
+              'color': '#F59E0B',
+              'symbol': 'triangle',
+            },
+          ],
+        }, path: '/calendar_legends'),
       );
 
       final data = await service.fetchMonth(

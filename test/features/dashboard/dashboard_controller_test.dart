@@ -36,7 +36,9 @@ void main() {
 
   group('DashboardController', () {
     test('loads dashboard data successfully on startup', () async {
-      when(() => service.fetchDashboardData()).thenAnswer((_) async => _dashboardData());
+      when(
+        () => service.fetchDashboardData(),
+      ).thenAnswer((_) async => _dashboardData());
 
       final controller = DashboardController(service);
       await Future<void>.delayed(Duration.zero);
@@ -61,7 +63,9 @@ void main() {
     });
 
     test('refresh delegates to loadDashboard', () async {
-      when(() => service.fetchDashboardData()).thenAnswer((_) async => _dashboardData());
+      when(
+        () => service.fetchDashboardData(),
+      ).thenAnswer((_) async => _dashboardData());
       final controller = DashboardController(service);
       await Future<void>.delayed(Duration.zero);
 

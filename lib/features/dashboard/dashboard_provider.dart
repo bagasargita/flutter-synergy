@@ -12,6 +12,6 @@ final dashboardServiceProvider = Provider<DashboardService>((ref) {
 /// Provides [DashboardController] – the state layer for the dashboard.
 final dashboardControllerProvider =
     StateNotifierProvider<DashboardController, DashboardState>((ref) {
-  final service = ref.watch(dashboardServiceProvider);
-  return DashboardController(service);
-});
+      final service = ref.watch(dashboardServiceProvider);
+      return DashboardController(service);
+    });

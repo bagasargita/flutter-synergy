@@ -7,11 +7,7 @@ class BaseResponse<T> {
   final String? message;
   final T? data;
 
-  const BaseResponse({
-    required this.success,
-    this.message,
-    this.data,
-  });
+  const BaseResponse({required this.success, this.message, this.data});
 
   factory BaseResponse.fromJson(
     Map<String, dynamic> json,

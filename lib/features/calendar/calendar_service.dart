@@ -38,8 +38,9 @@ class CalendarService {
       final monthlyBody = monthlyRes.data ?? <String, dynamic>{};
       if (monthlyBody['success'] != true) {
         throw ApiException(
-          message: (monthlyBody['message'] ?? 'Failed to load monthly attendance.')
-              .toString(),
+          message:
+              (monthlyBody['message'] ?? 'Failed to load monthly attendance.')
+                  .toString(),
           statusCode: monthlyRes.statusCode,
           data: monthlyBody,
         );
@@ -48,14 +49,17 @@ class CalendarService {
       final legendsBody = legendsRes.data ?? <String, dynamic>{};
       if (legendsBody['success'] != true) {
         throw ApiException(
-          message: (legendsBody['message'] ?? 'Failed to load calendar legends.')
-              .toString(),
+          message:
+              (legendsBody['message'] ?? 'Failed to load calendar legends.')
+                  .toString(),
           statusCode: legendsRes.statusCode,
           data: legendsBody,
         );
       }
 
-      final legends = _parseLegends(legendsBody['data'] as List<dynamic>? ?? []);
+      final legends = _parseLegends(
+        legendsBody['data'] as List<dynamic>? ?? [],
+      );
       final rows = monthlyBody['data'] as List<dynamic>? ?? [];
       final byDate = <String, Map<String, dynamic>>{};
       for (final e in rows) {
@@ -102,10 +106,7 @@ class CalendarService {
             isSelected: false,
             dayType: hasHoliday ? 'PUBLIC_HOLIDAY' : 'WORKING_DAY',
             holidayName: hasHoliday ? holidayStr : null,
-            legendKey: _resolveLegendKey(
-              isToday: isToday,
-              row: row,
-            ),
+            legendKey: _resolveLegendKey(isToday: isToday, row: row),
             attendanceRow: row.isEmpty ? null : row,
           ),
         );
@@ -144,11 +145,9 @@ class CalendarService {
       final symbolStr = symRaw?.toString().trim();
       final symbol =
           (symbolStr == null || symbolStr.isEmpty || symbolStr == 'null')
-              ? null
-              : symbolStr;
-      final key = (status == null || status.isEmpty)
-          ? name
-          : '$name|$status';
+          ? null
+          : symbolStr;
+      final key = (status == null || status.isEmpty) ? name : '$name|$status';
       if (name.isEmpty) continue;
       out.add(
         CalendarLegendItem(

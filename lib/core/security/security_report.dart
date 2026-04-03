@@ -42,13 +42,13 @@ class SecurityReport {
       isSuspiciousMovement;
 
   Map<String, dynamic> toJson() => {
-        'permissionDenied': permissionDenied,
-        'isMockLocation': isMockLocation,
-        'isDeveloperMode': isDeveloperMode,
-        'isRooted': isRooted,
-        'isEmulator': isEmulator,
-        'isSuspiciousMovement': isSuspiciousMovement,
-      };
+    'permissionDenied': permissionDenied,
+    'isMockLocation': isMockLocation,
+    'isDeveloperMode': isDeveloperMode,
+    'isRooted': isRooted,
+    'isEmulator': isEmulator,
+    'isSuspiciousMovement': isSuspiciousMovement,
+  };
 
   String toJsonString() => jsonEncode(toJson());
 }
@@ -99,10 +99,10 @@ class LocationSnapshot {
   final bool isMockedFromGeolocator;
 
   Map<String, dynamic> toJson() => {
-        'lat': latitude,
-        'lng': longitude,
-        'accuracy': accuracy,
-        'speed': speed,
-        'isMockedFromGeolocator': isMockedFromGeolocator,
-      };
+    'lat': latitude,
+    'lng': longitude,
+    'accuracy': accuracy,
+    'speed': speed,
+    'isMockedFromGeolocator': isMockedFromGeolocator,
+  };
 }

@@ -8,14 +8,7 @@ void main() {
 
       final out = AttendanceService.formatCheckTimestamp(date);
 
-      expect(
-        out,
-        matches(
-          RegExp(
-            r'^2026-04-03T09:05:07[+-]\d{2}:\d{2}$',
-          ),
-        ),
-      );
+      expect(out, matches(RegExp(r'^2026-04-03T09:05:07[+-]\d{2}:\d{2}$')));
     });
   });
 }

@@ -109,17 +109,121 @@ flutter test
 flutter test --coverage
 
 # Format code
-flutter format lib/
-
-# Build APK (Android)
-flutter build apk
-
-# Build iOS (macOS only)
-flutter build ios
-
-# Build web
-flutter build web
+dart format lib/
 ```
+
+## 📦 Building for release
+
+Version **name** and **build number** come from `pubspec.yaml` (`version: x.y.z+build`). Flutter passes them into Android (`versionName` / `versionCode`) and iOS (`CFBundleShortVersionString` / `CFBundleVersion`).
+
+Before any store build:
+
+```bash
+cd flutter-synergy   # project root
+flutter pub get
+flutter clean        # optional, if you hit stale build issues
+flutter build ...    # see below
+```
+
+---
+
+### Android — APK (direct install / sideload)
+
+Use an APK when you distribute outside Google Play (e.g. internal testing, MDM).
+
+```bash
+# Single “fat” APK (all ABIs — larger file)
+flutter build apk --release
+```
+
+Output:
+
+- `build/app/outputs/flutter-apk/app-release.apk`
+
+Smaller APKs per CPU architecture:
+
+```bash
+flutter build apk --release --split-per-abi
+```
+
+Output examples:
+
+- `build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk`
+- `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`
+- `build/app/outputs/flutter-apk/app-x86_64-release.apk`
+
+---
+
+### Android — Google Play (App Bundle)
+
+Play Console requires an **Android App Bundle (`.aab`)**, not a raw APK for new uploads.
+
+```bash
+flutter build appbundle --release
+```
+
+Output:
+
+- `build/app/outputs/bundle/release/app-release.aab`
+
+Upload that file in [Google Play Console](https://play.google.com/console) → your app → **Release** → **Production** (or a testing track).
+
+#### Release signing (required for Play)
+
+1. Create an upload keystore (once), e.g. with `keytool` — see [Flutter: Sign the app](https://docs.flutter.dev/deployment/android#signing-the-app).
+2. Add a `key.properties` file **outside** git (e.g. only on CI or your machine) with `storePassword`, `keyPassword`, `keyAlias`, `storeFile`.
+3. Wire **release** `signingConfig` in `android/app/build.gradle.kts` (this project still uses debug signing in `release` — replace before Play upload).
+
+Current application id is `com.synergy.flutter_synergy` (`android/app/build.gradle.kts`). Change it only with a deliberate Play/app-id migration plan.
+
+Optional checks:
+
+```bash
+flutter doctor -v
+```
+
+---
+
+### iOS — release build & App Store
+
+**Requires macOS** with Xcode installed and an Apple Developer account.
+
+1. **Open iOS project once in Xcode** to set signing:
+   - `open ios/Runner.xcworkspace`
+   - Select the **Runner** target → **Signing & Capabilities** → Team, bundle identifier, and capabilities (push, maps, camera, etc. as needed).
+
+2. **Versioning** — already driven by `pubspec.yaml`; Xcode can show the same if configured to use Flutter’s generated settings.
+
+3. **Build for devices / archive**:
+
+```bash
+# IPA for TestFlight / App Store (recommended)
+flutter build ipa --release
+```
+
+Flutter puts the IPA under `build/ios/ipa/` (exact filename may include the app name).
+
+Alternative (archive from Xcode):
+
+```bash
+flutter build ios --release
+```
+
+Then in Xcode: **Product → Archive** → **Distribute App** → App Store Connect.
+
+4. **App Store Connect** — create the app record, upload the build (Xcode Organizer or `flutter build ipa`), then submit for review.
+
+See also: [Flutter: Build and release an iOS app](https://docs.flutter.dev/deployment/ios).
+
+---
+
+### Quick reference
+
+| Goal | Command | Main output |
+|------|---------|-------------|
+| Android APK | `flutter build apk --release` | `build/app/outputs/flutter-apk/app-release.apk` |
+| Android Play | `flutter build appbundle --release` | `build/app/outputs/bundle/release/app-release.aab` |
+| iOS (TestFlight / App Store) | `flutter build ipa --release` | `build/ios/ipa/*.ipa` |
 
 ## 🧪 Testing
 

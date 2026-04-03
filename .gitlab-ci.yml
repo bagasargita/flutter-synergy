@@ -1,0 +1,120 @@
+# GitLab CI/CD: analyze, test, Android AAB + Play upload, iOS IPA + TestFlight.
+# Docs: docs/GITLAB_CI.md
+
+variables:
+  FLUTTER_CHANNEL: "stable"
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+stages:
+  - verify
+  - build
+  - deploy
+
+.default_rules:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+flutter_verify:
+  stage: verify
+  image:
+    name: ghcr.io/cirruslabs/flutter:${FLUTTER_CHANNEL}
+  rules:
+    - !reference [.default_rules, rules]
+  before_script:
+    - flutter --version
+    - flutter pub get
+  script:
+    # Fails only if formatting is needed (does not write files).
+    - dart format --output=none --set-exit-if-changed lib test
+    - flutter analyze --no-fatal-infos
+    - flutter test
+
+# --- Android: signed AAB (set ANDROID_* variables on protected branches / tags) ---
+build_android_release:
+  stage: build
+  image:
+    name: ghcr.io/cirruslabs/flutter:${FLUTTER_CHANNEL}
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v.*/
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+  before_script:
+    - flutter pub get
+    - chmod +x scripts/ci/*.sh
+    - ./scripts/ci/setup_android_signing.sh
+  script:
+    - flutter build appbundle --release
+  artifacts:
+    paths:
+      - build/app/outputs/bundle/release/app-release.aab
+    expire_in: 14 days
+
+deploy_play_store:
+  stage: deploy
+  image: ruby:3.3
+  needs: ["build_android_release"]
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v.*/
+      when: manual
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+  before_script:
+    - gem install bundler
+    - bundle config set --local path vendor/bundle
+    - bundle install --jobs 4 --retry 3
+  script:
+    - bundle exec fastlane android deploy_play_store
+
+# --- iOS: requires a macOS runner (GitLab SaaS: tag e.g. saas-macos-medium-m1) ---
+build_ios_release:
+  stage: build
+  # Use your GitLab macOS runner tag (e.g. GitLab SaaS: saas-macos-medium-m1).
+  tags:
+    - macos
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v.*/
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+  before_script:
+    - chmod +x scripts/ci/*.sh
+    - ./scripts/ci/patch_ios_team_id.sh
+    - command -v flutter >/dev/null 2>&1 || { echo "Flutter must be on PATH for the macOS runner."; exit 1; }
+    - flutter --version
+    - flutter pub get
+    - gem install bundler
+    - bundle config set --local path vendor/bundle
+    - bundle install --jobs 4 --retry 3
+  script:
+    - |
+      if [[ -n "${MATCH_GIT_URL:-}" ]]; then
+        bundle exec fastlane ios sync_match
+      fi
+    - bundle exec fastlane ios build_ipa
+  artifacts:
+    paths:
+      - build/ios/ipa/
+    expire_in: 14 days
+
+deploy_testflight:
+  stage: deploy
+  tags:
+    - macos
+  needs: ["build_ios_release"]
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v.*/
+      when: manual
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+  before_script:
+    - gem install bundler
+    - bundle config set --local path vendor/bundle
+    - bundle install --jobs 4 --retry 3
+  script:
+    - bundle exec fastlane ios deploy_testflight

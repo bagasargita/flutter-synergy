@@ -94,11 +94,7 @@ class _AnnouncementsListPageState extends ConsumerState<AnnouncementsListPage> {
       if (!mounted) return;
       setState(() => _loadingMore = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e is ApiException ? e.message : e.toString(),
-          ),
-        ),
+        SnackBar(content: Text(e is ApiException ? e.message : e.toString())),
       );
     }
   }
@@ -182,7 +178,9 @@ class _AnnouncementsListPageState extends ConsumerState<AnnouncementsListPage> {
       controller: _scroll,
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-      itemCount: _items.length + (_loadingMore || (!_hasMore && _items.isNotEmpty) ? 1 : 0),
+      itemCount:
+          _items.length +
+          (_loadingMore || (!_hasMore && _items.isNotEmpty) ? 1 : 0),
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         if (index >= _items.length) {
@@ -203,10 +201,7 @@ class _AnnouncementsListPageState extends ConsumerState<AnnouncementsListPage> {
             child: Text(
               'You have reached the end',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade500,
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
             ),
           );
         }
@@ -274,10 +269,7 @@ class _AnnouncementListCard extends StatelessWidget {
           if (url != null && url.isNotEmpty)
             InkWell(
               onTap: _canZoom
-                  ? () => showImageZoomDialog(
-                        context: context,
-                        networkUrl: url,
-                      )
+                  ? () => showImageZoomDialog(context: context, networkUrl: url)
                   : null,
               child: AspectRatio(
                 aspectRatio: 16 / 9,
@@ -329,10 +321,7 @@ class _AnnouncementListCard extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
               child: Text(
                 announcement.date,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               ),
             )
           else

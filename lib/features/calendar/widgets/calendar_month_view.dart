@@ -48,8 +48,8 @@ class CalendarMonthView extends StatelessWidget {
                   onPressed: isLoadingMonth
                       ? null
                       : (onPreviousMonth != null
-                          ? () => onPreviousMonth!()
-                          : null),
+                            ? () => onPreviousMonth!()
+                            : null),
                   icon: Icon(
                     Icons.chevron_left_rounded,
                     color: isLoadingMonth

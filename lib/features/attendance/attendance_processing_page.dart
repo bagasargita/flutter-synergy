@@ -98,8 +98,8 @@ class _AttendanceProcessingPageState
     } on ApiException catch (e) {
       if (!mounted) return;
       final data = e.data;
-      final securityBlock = data is Map &&
-          data[kAttendanceSecurityBlockDataKey] == true;
+      final securityBlock =
+          data is Map && data[kAttendanceSecurityBlockDataKey] == true;
       if (securityBlock) {
         GlobalTopBanner.showError(
           title: 'Attendance blocked',
