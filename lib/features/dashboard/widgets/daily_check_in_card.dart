@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_synergy/features/dashboard/dashboard_service.dart';
 import 'package:flutter_synergy/features/dashboard/widgets/dashboard_theme.dart';
@@ -173,7 +174,7 @@ class DailyCheckInCard extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                    onPressed: dayComplete
+                    onPressed: (dayComplete && !kDebugMode)
                         ? null
                         : () {
                             if (attendance.primaryAction == 'Check In') {
