@@ -35,13 +35,15 @@ final class CameraCaptureConfig {
   static CameraCaptureConfig forCurrentPlatform() {
     if (Platform.isIOS) {
       return const CameraCaptureConfig(
+        // BGRA matches preview stream for silent Vision analysis (no [takePicture]).
         imageFormatGroup: ImageFormatGroup.bgra8888,
-        analysisInterval: Duration(milliseconds: 1800),
+        analysisInterval: Duration(milliseconds: 2000),
         resolutionPreset: ResolutionPreset.medium,
         enableAudio: false,
         lockPortraitOnIos: true,
         autoCaptureAfterVerification: false,
-        postStillCaptureCooldown: Duration(milliseconds: 220),
+        // Preview path avoids still capture during scan; keep small cooldown if we fall back.
+        postStillCaptureCooldown: Duration(milliseconds: 120),
       );
     }
     return const CameraCaptureConfig(

@@ -12,8 +12,6 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
-    // Implicit engine: use the application registrar messenger so the channel is
-    // always bound (registrar(forPlugin:) can be nil for ad-hoc plugin keys).
     FaceDetectionChannel.register(with: engineBridge.applicationRegistrar.messenger())
   }
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'dart:io' show File;
+import 'dart:io' show File, Platform;
+import 'dart:math' as math;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
@@ -8,15 +9,31 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_synergy/core/constants/app_constants.dart';
 import 'package:flutter_synergy/features/camera/camera_capture_config.dart';
+import 'package:flutter_synergy/features/camera/face_detection_ios.dart';
 import 'package:flutter_synergy/features/camera/face_detection_service.dart';
 
-/// Flow: Camera → Face detection (ML Kit) → Liveness (blink) → Show Capture button → Return path for backend.
+/// Flow: Camera → Face detection → Close eyes, then open → Capture → Return path for backend.
 enum _CameraFlowState {
   loading,
   scanning,
-  livenessBlink,
+  livenessEyes,
   readyToCapture,
   error,
+}
+
+/// Last iOS BGRA preview frame (copied; plugin may reuse buffers).
+final class _IosBgraSnapshot {
+  const _IosBgraSnapshot({
+    required this.bytes,
+    required this.width,
+    required this.height,
+    required this.bytesPerRow,
+  });
+
+  final Uint8List bytes;
+  final int width;
+  final int height;
+  final int bytesPerRow;
 }
 
 class CameraPage extends StatefulWidget {
@@ -37,16 +54,51 @@ class _CameraPageState extends State<CameraPage> {
   Timer? _captureTimer;
   bool _isProcessing = false;
   bool _isCapturingFinalPhoto = false;
+
   /// Bumped on dispose so in-flight [takePicture] / analysis does not touch a disposed controller.
   int _cameraGeneration = 0;
   late FaceDetectionService _faceService;
   late CameraCaptureConfig _captureConfig;
-  // Blink liveness: require eyes open → closed → open (consecutive frames to avoid photo spoof).
+  // Eye liveness: open → hold closed → open again (consecutive frames reduce false triggers).
   int _consecutiveEyesOpen = 0;
   int _consecutiveEyesClosed = 0;
-  bool _blinkClosedPhaseSeen = false;
-  static const int _requiredOpenFrames = 2;
-  static const int _requiredClosedFrames = 2;
+  bool _closedEyesConfirmed = false;
+
+  /// iOS: brief face loss during eye check should not wipe progress.
+  int _iosLivenessBadFaceFrames = 0;
+
+  /// iOS: max avg(left,right) since liveness started — closed eyes = dip below peak when Vision flags lag.
+  double _iosLivenessOpennessPeak = 0;
+
+  _IosBgraSnapshot? _iosPreviewFrame;
+
+  /// Silent final image path (BGRA → JPEG on native), if snapshot succeeded.
+  String? _pendingFinalJpegPath;
+
+  /// Vision is noisier than ML Kit; “open again” needs fewer frames on iOS.
+  int get _requiredOpenFrames => Platform.isIOS ? 1 : 2;
+  /// Closed-eye frames to confirm (iOS: 1 + supplemental heuristics; Android: 2).
+  int get _requiredClosedFrames => Platform.isIOS ? 1 : 2;
+
+  /// iOS scanning uses a long interval; during eye liveness we read BGRA preview often enough.
+  static const Duration _iosLivenessAnalysisInterval = Duration(
+    milliseconds: 250,
+  );
+
+  Duration _periodicAnalysisInterval() {
+    if (Platform.isIOS && _state == _CameraFlowState.livenessEyes) {
+      return _iosLivenessAnalysisInterval;
+    }
+    return _captureConfig.analysisInterval;
+  }
+
+  void _restartPeriodicAnalysisTimer() {
+    _captureTimer?.cancel();
+    _captureTimer = Timer.periodic(
+      _periodicAnalysisInterval(),
+      (_) => unawaited(_captureAndAnalyze()),
+    );
+  }
 
   @override
   void initState() {
@@ -65,8 +117,25 @@ class _CameraPageState extends State<CameraPage> {
     _faceService.close();
     super.dispose();
     if (released != null) {
-      Future<void>.delayed(Duration.zero, released.dispose);
+      unawaited(_disposeControllerWhenIdle(released));
     }
+  }
+
+  /// [takePicture] is async; disposing the controller on the next microtask
+  /// races in-flight captures and triggers "used after being disposed".
+  Future<void> _disposeControllerWhenIdle(CameraController c) async {
+    const step = Duration(milliseconds: 10);
+    for (var i = 0; i < 200 && (_isProcessing || _isCapturingFinalPhoto); i++) {
+      await Future<void>.delayed(step);
+    }
+    try {
+      if (c.value.isStreamingImages) {
+        await c.stopImageStream();
+      }
+    } catch (_) {}
+    try {
+      await c.dispose();
+    } catch (_) {}
   }
 
   Future<void> _initCamera() async {
@@ -86,11 +155,33 @@ class _CameraPageState extends State<CameraPage> {
         imageFormatGroup: cfg.imageFormatGroup,
       );
       await controller.initialize();
+      try {
+        await controller.setFlashMode(FlashMode.off);
+      } catch (_) {}
       if (cfg.lockPortraitOnIos) {
         try {
           await controller.lockCaptureOrientation(DeviceOrientation.portraitUp);
         } catch (_) {
           // Simulator or devices that reject orientation lock — non-fatal.
+        }
+      }
+      if (Platform.isIOS && controller.supportsImageStreaming()) {
+        try {
+          await controller.startImageStream((CameraImage image) {
+            if (image.planes.length != 1) return;
+            if (image.format.group != ImageFormatGroup.bgra8888) return;
+            final plane = image.planes.first;
+            _iosPreviewFrame = _IosBgraSnapshot(
+              bytes: Uint8List.fromList(plane.bytes),
+              width: image.width,
+              height: image.height,
+              bytesPerRow: plane.bytesPerRow,
+            );
+          });
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('CameraPage iOS startImageStream: $e');
+          }
         }
       }
       if (!mounted) return;
@@ -111,145 +202,409 @@ class _CameraPageState extends State<CameraPage> {
 
   void _startCaptureLoop() {
     _captureTimer?.cancel();
-    _captureTimer = Timer.periodic(
-      _captureConfig.analysisInterval,
-      (_) => _captureAndAnalyze(),
-    );
+    // [Timer.periodic] waits [analysisInterval] before the first tick. Android:
+    // analyze right away. iOS: delay the first still so preview / AVFoundation
+    // can settle (reduces Fig -17281 and feels less like rapid auto-capture).
+    if (Platform.isIOS) {
+      unawaited(
+        Future<void>.delayed(const Duration(milliseconds: 600), () {
+          if (!mounted) return;
+          unawaited(_captureAndAnalyze());
+        }),
+      );
+    } else {
+      unawaited(_captureAndAnalyze());
+    }
+    _restartPeriodicAnalysisTimer();
   }
 
-  void _resetBlinkState() {
+  void _resetEyeLivenessState() {
     _consecutiveEyesOpen = 0;
     _consecutiveEyesClosed = 0;
-    _blinkClosedPhaseSeen = false;
+    _closedEyesConfirmed = false;
+    _iosLivenessBadFaceFrames = 0;
+    _iosLivenessOpennessPeak = 0;
   }
 
+  /// Periodic face check: iOS and Android use different capture/error handling.
   Future<void> _captureAndAnalyze() async {
     final gen = _cameraGeneration;
+    if (!_canStartFaceAnalysis(gen)) return;
+
+    _isProcessing = true;
+    try {
+      if (Platform.isIOS) {
+        await _captureAndAnalyzeIos(gen);
+      } else {
+        await _captureAndAnalyzeAndroid(gen);
+      }
+    } catch (e, st) {
+      if (Platform.isIOS) {
+        _onIosAnalysisError(e, st);
+      } else {
+        _onAndroidAnalysisError(e, st);
+      }
+    } finally {
+      _isProcessing = false;
+    }
+  }
+
+  bool _canStartFaceAnalysis(int gen) {
     if (_controller == null ||
         !_controller!.value.isInitialized ||
         _isProcessing ||
         !mounted ||
         gen != _cameraGeneration) {
-      return;
+      return false;
     }
     if (_state != _CameraFlowState.scanning &&
-        _state != _CameraFlowState.livenessBlink) {
+        _state != _CameraFlowState.livenessEyes) {
+      return false;
+    }
+    return true;
+  }
+
+  /// iOS: still capture + Vision — user-visible errors when AVFoundation is busy.
+  Future<void> _captureAndAnalyzeIos(int gen) async {
+    final result = await _acquireFaceDetectionResult(
+      gen,
+      onTakePictureFailure: _notifyIosCameraBusyDuringAnalysis,
+    );
+    if (result == null || !mounted || gen != _cameraGeneration) return;
+    _applyFaceDetectionStateMachine(result);
+  }
+
+  /// Android: still capture + ML Kit — lighter error surface (logs only).
+  Future<void> _captureAndAnalyzeAndroid(int gen) async {
+    final result = await _acquireFaceDetectionResult(
+      gen,
+      onTakePictureFailure: _notifyAndroidTakePictureFailedDuringAnalysis,
+    );
+    if (result == null || !mounted || gen != _cameraGeneration) return;
+    _applyFaceDetectionStateMachine(result);
+  }
+
+  /// iOS: silent BGRA → Vision when preview stream is running; otherwise (or
+  /// Android) [takePicture] + file pipeline.
+  Future<FaceDetectionResult?> _acquireFaceDetectionResult(
+    int gen, {
+    required void Function() onTakePictureFailure,
+  }) async {
+    final c = _controller;
+    if (c == null ||
+        !c.value.isInitialized ||
+        gen != _cameraGeneration ||
+        !mounted) {
+      return null;
+    }
+
+    if (Platform.isIOS && c.value.isStreamingImages) {
+      final snap = _iosPreviewFrame;
+      if (snap != null && snap.bytes.length > 512) {
+        try {
+          final previewResult = await _faceService.processBgra8888Preview(
+            bytes: snap.bytes,
+            width: snap.width,
+            height: snap.height,
+            bytesPerRow: snap.bytesPerRow,
+          );
+          if (previewResult != null && mounted && gen == _cameraGeneration) {
+            return previewResult;
+          }
+        } catch (e, st) {
+          if (kDebugMode) {
+            debugPrint('CameraPage BGRA Vision preview: $e\n$st');
+          }
+        }
+      }
+      // Stream is on but no frame yet — do not call [takePicture] (fails while streaming).
+      return null;
+    }
+
+    final XFile file;
+    try {
+      file = await c.takePicture();
+    } on CameraException catch (e) {
+      if (kDebugMode) {
+        debugPrint('CameraPage takePicture (analysis): $e');
+      }
+      if (!mounted || gen != _cameraGeneration) return null;
+      onTakePictureFailure();
+      return null;
+    }
+    if (!mounted || gen != _cameraGeneration) return null;
+
+    final cooldown = _captureConfig.postStillCaptureCooldown;
+    if (cooldown > Duration.zero) {
+      await Future<void>.delayed(cooldown);
+      if (!mounted || gen != _cameraGeneration) return null;
+    }
+
+    return _faceService.processFile(file.path);
+  }
+
+  void _notifyIosCameraBusyDuringAnalysis() {
+    setState(() {
+      _message =
+          'Camera is busy. Please wait a moment and hold your face in frame.';
+    });
+  }
+
+  void _notifyAndroidTakePictureFailedDuringAnalysis() {
+    // Previously no UI hint; keep analysis loop quiet on Android.
+  }
+
+  void _onIosAnalysisError(Object e, StackTrace st) {
+    if (kDebugMode) {
+      debugPrint('CameraPage iOS analysis: $e\n$st');
+    }
+    if (mounted) {
+      setState(() {
+        _message =
+            'Could not capture frame. Ensure camera access is allowed and try again.';
+      });
+    }
+  }
+
+  void _onAndroidAnalysisError(Object e, StackTrace st) {
+    if (kDebugMode) {
+      debugPrint('CameraPage Android analysis: $e\n$st');
+    }
+  }
+
+  /// Scanning / eye-liveness transitions (frame counts differ by platform).
+  void _applyFaceDetectionStateMachine(FaceDetectionResult result) {
+    switch (_state) {
+      case _CameraFlowState.scanning:
+        _applyScanningPhase(result);
+        break;
+      case _CameraFlowState.livenessEyes:
+        _applyLivenessPhase(result);
+        break;
+      default:
+        break;
+    }
+  }
+
+  /// Extra closed signal when Vision [eyesClosed] is false but scores dropped from baseline.
+  bool _iosLivenessLooksClosedFromScores(FaceDetectionResult result) {
+    final l = result.leftEyeOpenProbability;
+    final r = result.rightEyeOpenProbability;
+    if (l == null || r == null) return true;
+    final avg = (l + r) * 0.5;
+    final lo = math.min(l, r);
+    final hi = math.max(l, r);
+    if (avg < 0.42) return true;
+    if (lo < 0.30) return true;
+    if (avg < 0.52 && hi < 0.50 && lo < 0.40) return true;
+    return false;
+  }
+
+  /// Registers closed eyes when scores dip from a recent peak if flags lag.
+  bool _iosLivenessRegisterClosedFromOpennessDrop(FaceDetectionResult result) {
+    final l = result.leftEyeOpenProbability;
+    final r = result.rightEyeOpenProbability;
+    if (l == null || r == null) return false;
+    final avg = (l + r) * 0.5;
+    if (avg > _iosLivenessOpennessPeak) {
+      _iosLivenessOpennessPeak = avg;
+    }
+    final peak = _iosLivenessOpennessPeak;
+    final drop = peak - avg;
+    if (peak < 0.085) return false;
+    if (drop < 0.030) return false;
+    if (avg > 0.52) return false;
+    _consecutiveEyesOpen = 0;
+    _consecutiveEyesClosed++;
+    if (_consecutiveEyesClosed >= _requiredClosedFrames) {
+      _closedEyesConfirmed = true;
+    }
+    setState(
+      () => _message = _closedEyesConfirmed
+          ? 'Now open your eyes'
+          : 'Close your eyes and hold for a moment',
+    );
+    return true;
+  }
+
+  void _applyScanningPhase(FaceDetectionResult result) {
+    if (result.isGoodForCapture) {
+      _resetEyeLivenessState();
+      setState(() {
+        _state = _CameraFlowState.livenessEyes;
+        _message = 'Close your eyes and hold for a moment';
+      });
+      if (Platform.isIOS) {
+        _restartPeriodicAnalysisTimer();
+        unawaited(_captureAndAnalyze());
+      }
       return;
     }
-    // Don't run when readyToCapture — camera stays open, user taps Capture
-
-    _isProcessing = true;
-    try {
-      final c = _controller;
-      if (c == null ||
-          !c.value.isInitialized ||
-          gen != _cameraGeneration ||
-          !mounted) {
-        _isProcessing = false;
-        return;
-      }
-      final file = await c.takePicture();
-      if (!mounted || gen != _cameraGeneration) return;
-
-      final cooldown = _captureConfig.postStillCaptureCooldown;
-      if (cooldown > Duration.zero) {
-        await Future<void>.delayed(cooldown);
-        if (!mounted || gen != _cameraGeneration) return;
-      }
-
-      final result = await _faceService.processFile(file.path);
-
-      if (!mounted || gen != _cameraGeneration) return;
-
-      switch (_state) {
-        case _CameraFlowState.scanning:
-          if (result.isGoodForCapture) {
-            _consecutiveEyesOpen = 0;
-            _consecutiveEyesClosed = 0;
-            _blinkClosedPhaseSeen = false;
-            setState(() {
-              _state = _CameraFlowState.livenessBlink;
-              _message = 'Blink once to continue (prevents photo spoofing)';
-            });
-          } else if (result.faceCount == 0) {
-            setState(() => _message = 'Position your face in the frame');
-          } else if (result.faceCount > 1) {
-            setState(() => _message = 'Only one person should be in frame');
-          } else if (result.faceCount == 1) {
-            if (!result.classificationAvailable) {
-              setState(() => _message = 'Hold still — analyzing face');
-            } else if (!result.eyesOpen) {
-              setState(() => _message = 'Look at the camera with eyes open');
-            } else {
-              setState(() => _message = 'Move a little closer to the camera');
-            }
-          }
-          break;
-        case _CameraFlowState.livenessBlink:
-          if (result.faceCount != 1) {
-            _resetBlinkState();
-            setState(
-              () => _message = 'Keep your face in frame, then blink once',
-            );
-            break;
-          }
-          if (!result.classificationAvailable) {
-            _captureTimer?.cancel();
-            _captureTimer = null;
-            setState(() {
-              _state = _CameraFlowState.readyToCapture;
-              _message = _readyToCaptureMessage();
-            });
-            _isProcessing = false;
-            _maybeAutoCaptureAfterVerification();
-            return;
-          }
-          if (result.eyesOpen) {
-            _consecutiveEyesClosed = 0;
-            _consecutiveEyesOpen++;
-            if (_blinkClosedPhaseSeen &&
-                _consecutiveEyesOpen >= _requiredOpenFrames) {
-              _captureTimer?.cancel();
-              _captureTimer = null;
-              setState(() {
-                _state = _CameraFlowState.readyToCapture;
-                _message = _readyToCaptureMessage();
-              });
-              _isProcessing = false;
-              _maybeAutoCaptureAfterVerification();
-              return;
-            }
-            setState(
-              () => _message = _blinkClosedPhaseSeen
-                  ? 'Eyes open again — verifying...'
-                  : 'Blink once to continue (prevents photo spoofing)',
-            );
-          } else if (result.eyesClosed) {
-            _consecutiveEyesOpen = 0;
-            _consecutiveEyesClosed++;
-            if (_consecutiveEyesClosed >= _requiredClosedFrames) {
-              _blinkClosedPhaseSeen = true;
-            }
-            setState(
-              () => _message = _blinkClosedPhaseSeen
-                  ? 'Now open your eyes'
-                  : 'Blink once to continue',
-            );
-          } else {
-            _consecutiveEyesOpen = 0;
-            _consecutiveEyesClosed = 0;
-            setState(() => _message = 'Blink once clearly to continue');
-          }
-          break;
-        default:
-          break;
-      }
-    } catch (e, st) {
-      if (kDebugMode) {
-        debugPrint('CameraPage _captureAndAnalyze: $e\n$st');
+    if (result.faceCount == 0) {
+      setState(() => _message = 'Position your face in the frame');
+      return;
+    }
+    if (result.faceCount > 1) {
+      setState(() => _message = 'Only one person should be in frame');
+      return;
+    }
+    if (result.faceCount == 1) {
+      if (!result.classificationAvailable) {
+        setState(() => _message = 'Hold still — analyzing face');
+      } else if (!result.eyesOpen) {
+        setState(() => _message = 'Look at the camera with eyes open');
+      } else {
+        setState(() => _message = 'Move a little closer to the camera');
       }
     }
-    _isProcessing = false;
+  }
+
+  void _applyLivenessPhase(FaceDetectionResult result) {
+    if (result.faceCount != 1) {
+      if (Platform.isIOS) {
+        _iosLivenessBadFaceFrames++;
+        if (_iosLivenessBadFaceFrames >= 5) {
+          _resetEyeLivenessState();
+          setState(
+            () => _message = 'Keep your face in frame, then close your eyes',
+          );
+        } else {
+          setState(
+            () => _message = 'Stay in frame — close your eyes when ready',
+          );
+        }
+        return;
+      }
+      _resetEyeLivenessState();
+      setState(
+        () => _message = 'Keep your face in frame, then close your eyes',
+      );
+      return;
+    }
+    _iosLivenessBadFaceFrames = 0;
+
+    if (!result.classificationAvailable) {
+      if (Platform.isIOS) {
+        setState(
+          () => _message = 'Keep your face visible — we need to see your eyes',
+        );
+        return;
+      }
+      setState(
+        () => _message =
+            'Hold still — we need a clear view of your eyes',
+      );
+      return;
+    }
+    // Prefer closed before open. iOS: score-based closed only until we’ve confirmed — otherwise
+    // “open again” would keep matching supplemental thresholds and never finish.
+    final closedNow = result.eyesClosed ||
+        (Platform.isIOS &&
+            !_closedEyesConfirmed &&
+            _iosLivenessLooksClosedFromScores(result));
+    if (closedNow) {
+      _consecutiveEyesOpen = 0;
+      _consecutiveEyesClosed++;
+      if (_consecutiveEyesClosed >= _requiredClosedFrames) {
+        _closedEyesConfirmed = true;
+      }
+      setState(
+        () => _message = _closedEyesConfirmed
+            ? 'Now open your eyes'
+            : 'Close your eyes and hold for a moment',
+      );
+      return;
+    }
+    if (Platform.isIOS &&
+        !_closedEyesConfirmed &&
+        _iosLivenessRegisterClosedFromOpennessDrop(result)) {
+      return;
+    }
+    final openNow = result.eyesOpen ||
+        (Platform.isIOS &&
+            _closedEyesConfirmed &&
+            !_iosLivenessLooksClosedFromScores(result));
+    if (openNow) {
+      _consecutiveEyesClosed = 0;
+      _consecutiveEyesOpen++;
+      if (_closedEyesConfirmed &&
+          _consecutiveEyesOpen >= _requiredOpenFrames) {
+        _transitionToReadyToCapture();
+        return;
+      }
+      setState(
+        () => _message = _closedEyesConfirmed
+            ? 'Keep your eyes open — finishing…'
+            : 'Close your eyes and hold for a moment',
+      );
+      return;
+    }
+    if (Platform.isIOS) {
+      setState(
+        () => _message =
+            'Close your eyes, then open them when we say so',
+      );
+      return;
+    }
+    _consecutiveEyesOpen = 0;
+    _consecutiveEyesClosed = 0;
+    setState(
+      () => _message = 'Close your eyes, then open them when prompted',
+    );
+  }
+
+  void _transitionToReadyToCapture() {
+    _captureTimer?.cancel();
+    _captureTimer = null;
+    if (Platform.isIOS) {
+      unawaited(_transitionToReadyToCaptureIos());
+    } else {
+      setState(() {
+        _state = _CameraFlowState.readyToCapture;
+        _message = _readyToCaptureMessage();
+      });
+      _maybeAutoCaptureAfterVerification();
+    }
+  }
+
+  Future<void> _stopIosImageStreamIfNeeded() async {
+    final c = _controller;
+    if (c == null || !c.value.isStreamingImages) return;
+    try {
+      await c.stopImageStream();
+    } catch (_) {}
+    _iosPreviewFrame = null;
+  }
+
+  Future<void> _transitionToReadyToCaptureIos() async {
+    final gen = _cameraGeneration;
+    final snap = _iosPreviewFrame;
+    await _stopIosImageStreamIfNeeded();
+    if (!mounted || gen != _cameraGeneration) return;
+
+    String? pending;
+    if (snap != null && snap.bytes.length > 512) {
+      pending = await FaceDetectionServiceIos.writeBgraSnapshotToTempJpeg(
+        bytes: snap.bytes,
+        width: snap.width,
+        height: snap.height,
+        bytesPerRow: snap.bytesPerRow,
+      );
+    }
+    if (!mounted || gen != _cameraGeneration) {
+      if (pending != null) {
+        try {
+          await File(pending).delete();
+        } catch (_) {}
+      }
+      return;
+    }
+    _pendingFinalJpegPath = pending;
+    setState(() {
+      _state = _CameraFlowState.readyToCapture;
+      _message = _readyToCaptureMessage();
+    });
+    _maybeAutoCaptureAfterVerification();
   }
 
   String _readyToCaptureMessage() {
@@ -259,6 +614,7 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   void _maybeAutoCaptureAfterVerification() {
+    if (Platform.isIOS) return;
     if (_captureConfig.autoCaptureAfterVerification) {
       _autoCaptureAfterVerification();
     }
@@ -271,6 +627,26 @@ class _CameraPageState extends State<CameraPage> {
     if (c == null || !c.value.isInitialized || gen != _cameraGeneration) return;
     _isCapturingFinalPhoto = true;
     try {
+      await _stopIosImageStreamIfNeeded();
+      final pending = _pendingFinalJpegPath;
+      _pendingFinalJpegPath = null;
+      if (pending != null) {
+        final src = File(pending);
+        if (await src.exists()) {
+          final dir = await getTemporaryDirectory();
+          final dest = File(
+            '${dir.path}/face_capture_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+          await src.copy(dest.path);
+          try {
+            await src.delete();
+          } catch (_) {}
+          if (!mounted || gen != _cameraGeneration) return;
+          Navigator.of(context).pop<String?>(dest.path);
+          return;
+        }
+      }
+
       final file = await c.takePicture();
       if (!mounted || gen != _cameraGeneration) return;
       final dir = await getTemporaryDirectory();
@@ -296,6 +672,7 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> _autoCaptureAfterVerification() async {
+    if (Platform.isIOS) return;
     final gen = _cameraGeneration;
     if (_isCapturingFinalPhoto || !mounted || gen != _cameraGeneration) return;
     await Future<void>.delayed(const Duration(milliseconds: 250));
@@ -304,6 +681,17 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   void _cancel() {
+    final pending = _pendingFinalJpegPath;
+    _pendingFinalJpegPath = null;
+    if (pending != null) {
+      unawaited(
+        Future<void>(() async {
+          try {
+            await File(pending).delete();
+          } catch (_) {}
+        }),
+      );
+    }
     Navigator.of(context).pop<String?>(null);
   }
 

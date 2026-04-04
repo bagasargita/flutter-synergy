@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_synergy/features/camera/face_detection_platform.dart';
 import 'package:flutter_synergy/features/camera/face_detection_types.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
@@ -65,6 +67,15 @@ final class FaceDetectionServiceAndroid implements FaceDetectionPlatform {
       minFaceWidthRequiredPx: kAndroidMinFaceWidthForCapturePx,
     );
   }
+
+  @override
+  Future<FaceDetectionResult?> processBgra8888Preview({
+    required Uint8List bytes,
+    required int width,
+    required int height,
+    required int bytesPerRow,
+  }) async =>
+      null;
 
   @override
   Future<void> close() => _detector.close();

@@ -26,13 +26,13 @@ class FaceDetectionResult {
   final int faceCount;
   final Face? singleFace;
 
-  /// Image-space face rect in pixels (top-left origin). Set on iOS (Vision) paths
-  /// where [singleFace] is null; Android may set both for consistency.
+  /// Image-space face rect in pixels (top-left origin). From ML Kit on Android;
+  /// from Vision on iOS when [singleFace] is null.
   final Rect? faceBoundsImage;
 
   final bool eyesOpen;
 
-  /// True when both eyes are closed (for blink detection).
+  /// True when both eyes read as closed (eye liveness).
   final bool eyesClosed;
   final bool smiling;
   final double? leftEyeOpenProbability;

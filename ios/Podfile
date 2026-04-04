@@ -28,7 +28,9 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  use_frameworks!
+  # Dynamic frameworks break some Google ML Kit / GoogleUtilities service wiring on iOS
+  # (console: CCTPolicyVending_API / MLKITx_SRLRegistry "No binding was found…").
+  use_frameworks! :linkage => :static
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
