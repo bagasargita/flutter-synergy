@@ -25,8 +25,8 @@ final class CameraCaptureConfig {
   /// Stabilizes still capture on iOS when the app is portrait-only.
   final bool lockPortraitOnIos;
 
-  /// After liveness passes, take the final photo automatically (Android). iOS
-  /// uses manual Capture only to avoid stacked still captures and Fig -17281.
+  /// After liveness passes, take the final photo automatically (uses silent BGRA
+  /// snapshot on iOS when available, else still capture).
   final bool autoCaptureAfterVerification;
 
   /// Brief pause after each analysis still on iOS so AVFoundation can settle.
@@ -41,7 +41,7 @@ final class CameraCaptureConfig {
         resolutionPreset: ResolutionPreset.medium,
         enableAudio: false,
         lockPortraitOnIos: true,
-        autoCaptureAfterVerification: false,
+        autoCaptureAfterVerification: true,
         // Preview path avoids still capture during scan; keep small cooldown if we fall back.
         postStillCaptureCooldown: Duration(milliseconds: 120),
       );

@@ -614,7 +614,6 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   void _maybeAutoCaptureAfterVerification() {
-    if (Platform.isIOS) return;
     if (_captureConfig.autoCaptureAfterVerification) {
       _autoCaptureAfterVerification();
     }
@@ -672,10 +671,12 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> _autoCaptureAfterVerification() async {
-    if (Platform.isIOS) return;
     final gen = _cameraGeneration;
     if (_isCapturingFinalPhoto || !mounted || gen != _cameraGeneration) return;
-    await Future<void>.delayed(const Duration(milliseconds: 250));
+    final settle = Platform.isIOS
+        ? const Duration(milliseconds: 400)
+        : const Duration(milliseconds: 250);
+    await Future<void>.delayed(settle);
     if (!mounted || gen != _cameraGeneration) return;
     await _onCapturePressed();
   }
