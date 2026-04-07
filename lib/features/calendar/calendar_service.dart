@@ -143,10 +143,11 @@ class CalendarService {
       final colorHex = (m['color'] ?? '#888888').toString();
       final symRaw = m['symbol'];
       final symbolStr = symRaw?.toString().trim();
-      final symbol =
-          (symbolStr == null || symbolStr.isEmpty || symbolStr == 'null')
-          ? null
-          : symbolStr;
+      final symbol = _normalizeSymbol(
+        name: name,
+        status: status,
+        rawSymbol: symbolStr,
+      );
       final key = (status == null || status.isEmpty) ? name : '$name|$status';
       if (name.isEmpty) continue;
       out.add(
@@ -163,12 +164,36 @@ class CalendarService {
 
   Color _parseHexColor(String hex) {
     var h = hex.trim().replaceFirst('#', '');
+    // Support CSS shorthand from API, e.g. "#888" -> "#888888".
+    if (h.length == 3) {
+      h = '${h[0]}${h[0]}${h[1]}${h[1]}${h[2]}${h[2]}';
+    }
     if (h.length == 6) {
       h = 'FF$h';
     }
     final v = int.tryParse(h, radix: 16);
     if (v == null) return const Color(0xFF888888);
     return Color(v);
+  }
+
+  String? _normalizeSymbol({
+    required String name,
+    required String? status,
+    required String? rawSymbol,
+  }) {
+    final normalized = rawSymbol?.toLowerCase();
+    if (normalized == 'circle' ||
+        normalized == 'triangle' ||
+        normalized == 'square') {
+      return normalized;
+    }
+    // Keep unapproved request legends visually consistent when API omits symbol.
+    if ((status ?? '').toLowerCase() == 'unapproved') {
+      if (name == 'trip') return 'triangle';
+      if (name == 'overtime') return 'square';
+      if (name == 'leave') return 'circle';
+    }
+    return null;
   }
 
   String _ymd(DateTime d) {
