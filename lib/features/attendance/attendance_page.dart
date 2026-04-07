@@ -364,6 +364,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
                             textAlign: TextAlign.center,
                             style: theme.textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w500,
+                              color: Colors.black,
                             ),
                           ),
                         ),

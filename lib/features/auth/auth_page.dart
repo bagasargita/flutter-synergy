@@ -140,11 +140,14 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                           controller: _usernameController,
                           keyboardType: TextInputType.text,
                           textInputAction: TextInputAction.next,
-                          style: const TextStyle(fontSize: 14),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.black,
+                          ),
                           decoration: InputDecoration(
                             hintText: 'john.doe',
-                            hintStyle: TextStyle(
-                              color: Colors.grey.shade400,
+                            hintStyle: const TextStyle(
+                              color: Colors.black54,
                               fontSize: 14,
                             ),
                             filled: true,
@@ -202,11 +205,14 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                           obscureText: _obscurePassword,
                           textInputAction: TextInputAction.done,
                           onFieldSubmitted: (_) => _onLogin(),
-                          style: const TextStyle(fontSize: 14),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.black,
+                          ),
                           decoration: InputDecoration(
                             hintText: 'Enter your password',
-                            hintStyle: TextStyle(
-                              color: Colors.grey.shade400,
+                            hintStyle: const TextStyle(
+                              color: Colors.black54,
                               fontSize: 14,
                             ),
                             filled: true,
