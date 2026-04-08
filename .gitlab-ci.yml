@@ -1,6 +1,7 @@
 # GitLab CI/CD: analyze, test, Android AAB + Play upload, iOS IPA + TestFlight.
 # Docs: docs/GITLAB_CI.md
 
+
 variables:
   FLUTTER_CHANNEL: "stable"
 
