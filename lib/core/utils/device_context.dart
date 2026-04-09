@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 
+import 'package:android_id/android_id.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,6 +12,7 @@ class DeviceContext {
 
   static const _kInstallId = 'flutter_synergy_install_device_id';
   static const _secure = FlutterSecureStorage();
+  static const _androidId = AndroidId();
 
   static Future<String> getOrCreateDeviceId() async {
     // 1) Prefer secure storage (persists better across app restarts/hot reload).
@@ -36,6 +38,15 @@ class DeviceContext {
 
   static Future<String> _buildStableDeviceId() async {
     try {
+      if (Platform.isAndroid) {
+        // Prefer SSAID for Android; usually stable across reinstall for the
+        // same app signing key + user profile.
+        final aid = (await _androidId.getId())?.trim() ?? '';
+        if (aid.isNotEmpty) {
+          return 'android_${_fnv1a64Hex('android|$aid')}';
+        }
+      }
+
       final plugin = DeviceInfoPlugin();
       final os = Platform.operatingSystem;
       late final Map<String, dynamic> data;
