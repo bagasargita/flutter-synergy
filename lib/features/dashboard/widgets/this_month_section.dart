@@ -16,15 +16,20 @@ class ThisMonthSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Wider cells (lower aspect ratio) when user has large text / display scaling.
+    final textScaler = MediaQuery.textScalerOf(context);
+    final textScale = textScaler.scale(14) / 14.0;
+    final childAspectRatio = (1.35 / textScale).clamp(0.72, 1.6);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'This Month',
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.bold,
                 color: DashboardTheme.darkText,
@@ -47,12 +52,13 @@ class ThisMonthSection extends StatelessWidget {
           crossAxisCount: 2,
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
-          childAspectRatio: 1.35,
+          childAspectRatio: childAspectRatio,
           children: [
             _StatCard(
               icon: Icons.schedule_rounded,
               iconColor: Colors.orange,
-              title: 'Late checkin / early checkout',
+              // Explicit two-line break so large text / narrow cards don’t squeeze one line.
+              title: 'Late check-in / early checkout',
               value: '${monthStats.lateCheckinEarlyCheckout}',
             ),
             _StatCard(
@@ -97,8 +103,15 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textScaler = MediaQuery.textScalerOf(context);
+    final textScale = textScaler.scale(14) / 14.0;
+    final iconBox = (40.0 * textScale.clamp(0.85, 1.25)).clamp(32.0, 48.0);
+    final iconGlyph = (22.0 * textScale.clamp(0.85, 1.2)).clamp(18.0, 28.0);
+
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: EdgeInsets.all(
+        (14.0 / textScale.clamp(0.9, 1.4)).clamp(8.0, 14.0),
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -110,42 +123,51 @@ class _StatCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: iconColor, size: 22),
+      alignment: Alignment.center,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.center,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 200),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: iconBox,
+                height: iconBox,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: iconColor, size: iconGlyph),
+              ),
+              SizedBox(height: 10 * textScale.clamp(0.85, 1.2)),
+              Text(
+                value,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 22 * textScale.clamp(0.85, 1.25),
+                  fontWeight: FontWeight.bold,
+                  color: DashboardTheme.darkText,
+                ),
+              ),
+              SizedBox(height: 4 * textScale.clamp(0.85, 1.2)),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12 * textScale.clamp(0.85, 1.25),
+                  color: Colors.grey.shade600,
+                  height: 1.2,
+                ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: DashboardTheme.darkText,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
-              height: 1.2,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+        ),
       ),
     );
   }
