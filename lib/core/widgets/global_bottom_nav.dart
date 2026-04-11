@@ -30,6 +30,11 @@ class GlobalBottomNav extends StatelessWidget {
     final selected = selectedColor ?? theme.colorScheme.primary;
     final unselected = unselectedColor ?? Colors.grey.shade400;
     final bottomPadding = MediaQuery.paddingOf(context).bottom;
+    final textScaler = MediaQuery.textScalerOf(context);
+    final textScale = textScaler.scale(_fontSize) / _fontSize;
+    // Taller bar when user has large text / display scaling so icon+label fit.
+    final contentHeight = (_contentHeight * textScale.clamp(1.0, 1.45))
+        .clamp(_contentHeight, 88.0);
 
     return Container(
       decoration: BoxDecoration(
@@ -46,25 +51,27 @@ class GlobalBottomNav extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(
-            height: _contentHeight,
+            height: contentHeight,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: List.generate(items.length, (index) {
                 final item = items[index];
                 final isSelected = currentIndex == index;
-                return _GlobalNavItem(
-                  label: item.label,
-                  icon: item.icon,
-                  isSelected: isSelected,
-                  color: isSelected ? selected : unselected,
-                  iconSize: _iconSize,
-                  fontSize: _fontSize,
-                  verticalPadding: _verticalPadding,
-                  spacing: _spacing,
-                  onTap: () {
-                    onTap(index);
-                    item.onSelected?.call();
-                  },
+                return Expanded(
+                  child: _GlobalNavItem(
+                    label: item.label,
+                    icon: item.icon,
+                    isSelected: isSelected,
+                    color: isSelected ? selected : unselected,
+                    iconSize: _iconSize,
+                    fontSize: _fontSize,
+                    verticalPadding: _verticalPadding,
+                    spacing: _spacing,
+                    onTap: () {
+                      onTap(index);
+                      item.onSelected?.call();
+                    },
+                  ),
                 );
               }),
             ),
@@ -119,26 +126,42 @@ class _GlobalNavItem extends StatelessWidget {
       borderRadius: BorderRadius.circular(8),
       child: Padding(
         padding: EdgeInsets.symmetric(
-          horizontal: 16,
+          horizontal: 8,
           vertical: verticalPadding,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: iconSize, color: color),
-            SizedBox(height: spacing),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: fontSize,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: color,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.center,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: constraints.maxWidth,
+                  maxHeight: constraints.maxHeight,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon, size: iconSize, color: color),
+                    SizedBox(height: spacing),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: fontSize,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.w500,
+                        color: color,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
