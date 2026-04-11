@@ -248,6 +248,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
     final profile = _profile;
     if (profile == null) return;
 
+    // TODO: Uncomment this after testing
     final report = await SecurityService.instance.checkSecurity();
     if (!mounted) return;
     if (report.isRisky) {

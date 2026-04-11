@@ -46,6 +46,7 @@ final class CameraCaptureConfig {
         postStillCaptureCooldown: Duration(milliseconds: 120),
       );
     }
+    // Android: no automatic shutter after liveness — user must tap Capture.
     return const CameraCaptureConfig(
       imageFormatGroup: ImageFormatGroup.jpeg,
       analysisInterval: Duration(milliseconds: 600),
