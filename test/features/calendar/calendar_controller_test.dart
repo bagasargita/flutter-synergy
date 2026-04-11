@@ -7,7 +7,10 @@ import 'package:mocktail/mocktail.dart';
 
 class MockCalendarService extends Mock implements CalendarService {}
 
-class FakeCalendarDayInfo extends Fake implements CalendarDayInfo {}
+class FakeCalendarDayInfo extends Fake implements CalendarDayInfo {
+  @override
+  List<String> get legendKeys => const [];
+}
 
 DailyAttendanceInfo _attendance(String date) {
   return DailyAttendanceInfo(

@@ -81,7 +81,7 @@ void main() {
       expect(data.monthLabel, 'April 2026');
       expect(data.days.length, 30);
       expect(data.selectedDay.date, DateTime(2026, 4, 3));
-      expect(data.selectedDay.legendKey, 'attendance|late');
+      expect(data.selectedDay.legendKeys, ['attendance|late']);
       expect(data.timesheetHours, '08:01');
       expect(data.legends.length, 2);
       expect(data.legends.first.dotColor, const Color(0xFF2563EB));

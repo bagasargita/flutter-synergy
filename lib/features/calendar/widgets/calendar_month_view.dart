@@ -107,8 +107,8 @@ class CalendarMonthView extends StatelessWidget {
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 7,
-                // Fixed row height avoids default square cells (extra gap under SUN–SAT).
-                mainAxisExtent: 56,
+                // Fixed row height; extra space for multiple legend marks under a day.
+                mainAxisExtent: 60,
                 mainAxisSpacing: 2,
                 crossAxisSpacing: 4,
               ),
@@ -174,11 +174,21 @@ class _DayCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final isSelected = day.isSelected;
     final isToday = day.isToday;
+    final holidayLegend = _legendForKey('holiday');
+    final isPublicHoliday = day.dayType == 'PUBLIC_HOLIDAY';
+    // Holiday uses number color only; other keys (leave + late, etc.) show as dots.
+    final markLegends = <CalendarLegendItem>[];
+    for (final key in day.legendKeys) {
+      if (key == 'holiday') continue;
+      final item = _legendForKey(key);
+      if (item != null) markLegends.add(item);
+    }
 
     final Color baseColor = DashboardTheme.accentBlue;
 
     // Today: solid fill. Selected (non-today): outline only.
     // When a day is both today and selected, keep solid "today" styling.
+    // Public holiday: use legend holiday color for the number, never the cell dot.
     final Color bgColor;
     final Color borderColor;
     final Color textColor;
@@ -189,14 +199,18 @@ class _DayCell extends StatelessWidget {
     } else if (isSelected) {
       bgColor = Colors.transparent;
       borderColor = baseColor.withValues(alpha: 0.7);
-      textColor = DashboardTheme.darkText;
+      textColor = isPublicHoliday
+          ? (holidayLegend?.dotColor ?? DashboardTheme.darkText)
+          : DashboardTheme.darkText;
+    } else if (isPublicHoliday) {
+      bgColor = Colors.transparent;
+      borderColor = Colors.transparent;
+      textColor = holidayLegend?.dotColor ?? DashboardTheme.darkText;
     } else {
       bgColor = Colors.transparent;
       borderColor = Colors.transparent;
       textColor = DashboardTheme.darkText;
     }
-
-    final legend = _legendForKey(day.legendKey);
 
     return InkWell(
       onTap: onTap,
@@ -224,11 +238,19 @@ class _DayCell extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 2),
-          if (legend != null)
-            CalendarLegendMark(
-              color: legend.dotColor,
-              symbol: legend.symbol,
-              size: 7,
+          if (markLegends.isNotEmpty)
+            Wrap(
+              spacing: 3,
+              runSpacing: 2,
+              alignment: WrapAlignment.center,
+              children: [
+                for (final item in markLegends)
+                  CalendarLegendMark(
+                    color: item.dotColor,
+                    symbol: item.symbol,
+                    size: markLegends.length > 3 ? 5 : 6,
+                  ),
+              ],
             ),
         ],
       ),

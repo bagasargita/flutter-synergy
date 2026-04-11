@@ -106,7 +106,7 @@ class CalendarService {
             isSelected: false,
             dayType: hasHoliday ? 'PUBLIC_HOLIDAY' : 'WORKING_DAY',
             holidayName: hasHoliday ? holidayStr : null,
-            legendKey: _resolveLegendKey(isToday: isToday, row: row),
+            legendKeys: _resolveLegendKeys(isToday: isToday, row: row),
             attendanceRow: row.isEmpty ? null : row,
           ),
         );
@@ -229,43 +229,50 @@ class CalendarService {
     return 'approved';
   }
 
-  /// First matching legend category wins (single dot per cell).
-  String? _resolveLegendKey({
+  /// All applicable legend keys for the day (multiple marks when e.g. leave + late).
+  /// Order: trip, leave, overtime, holiday, attendance; `today` only if nothing else applies.
+  List<String> _resolveLegendKeys({
     required bool isToday,
     required Map<String, dynamic> row,
   }) {
-    final trip = row['trip'];
-    final leave = row['leave'];
-    final overtime = row['overtime'];
-    final holiday = row['holiday'];
-    final attendance = row['attendance']?.toString().toLowerCase();
+    final keys = <String>[];
 
+    final trip = row['trip'];
     if (!_isEmptyNested(trip)) {
       final tripSt = _nestedStatus(trip) ?? 'approved';
-      return 'trip|$tripSt';
+      keys.add('trip|$tripSt');
     }
+
+    final leave = row['leave'];
     if (!_isEmptyNested(leave)) {
       final leaveSt = _nestedStatus(leave) ?? 'approved';
-      return 'leave|$leaveSt';
+      keys.add('leave|$leaveSt');
     }
+
+    final overtime = row['overtime'];
     if (!_isEmptyNested(overtime)) {
       final otSt = _nestedStatus(overtime) ?? 'approved';
-      return 'overtime|$otSt';
+      keys.add('overtime|$otSt');
     }
 
+    final holiday = row['holiday'];
     final holStr = holiday?.toString().trim();
     if (holStr != null && holStr.isNotEmpty) {
-      return 'holiday';
+      keys.add('holiday');
     }
 
+    final attendance = row['attendance']?.toString().toLowerCase();
     if (attendance != null && attendance.isNotEmpty) {
-      if (attendance == 'late') return 'attendance|late';
-      if (attendance == 'underhour') return 'attendance|underhour';
-      if (attendance == 'absence') return 'attendance|absence';
+      if (attendance == 'late') keys.add('attendance|late');
+      if (attendance == 'underhour') keys.add('attendance|underhour');
+      if (attendance == 'absence') keys.add('attendance|absence');
     }
 
-    if (isToday) return 'today';
-    return null;
+    if (keys.isEmpty && isToday) {
+      keys.add('today');
+    }
+
+    return keys;
   }
 
   String? _formatIsoTimeTo12h(String? iso) {

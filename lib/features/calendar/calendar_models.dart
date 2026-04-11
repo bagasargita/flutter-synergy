@@ -13,8 +13,13 @@ class CalendarDayInfo {
   /// Optional holiday name (e.g. weekend label or full holiday title).
   final String? holidayName;
 
-  /// Composite key matching [CalendarLegendItem.key], e.g. `holiday`, `today`, `attendance|late`.
-  final String? legendKey;
+  /// Legend keys for icons under the day (e.g. `leave|approved`, `attendance|late`).
+  /// Multiple keys show multiple marks; `holiday` still uses number color only (no dot).
+  /// Stored nullable so tests / fakes cannot violate the type; use [legendKeys] getter.
+  final List<String>? _legendKeys;
+
+  /// Always non-null (empty when unset). Safe for mocks that would otherwise return null.
+  List<String> get legendKeys => _legendKeys ?? const [];
 
   /// Raw row from `GET /attendances/monthly` for the selected day summary.
   final Map<String, dynamic>? attendanceRow;
@@ -25,9 +30,9 @@ class CalendarDayInfo {
     required this.isSelected,
     required this.dayType,
     this.holidayName,
-    this.legendKey,
+    List<String>? legendKeys,
     this.attendanceRow,
-  });
+  }) : _legendKeys = legendKeys;
 
   CalendarDayInfo copyWith({
     bool? isSelected,
@@ -39,7 +44,7 @@ class CalendarDayInfo {
       isSelected: isSelected ?? this.isSelected,
       dayType: dayType,
       holidayName: holidayName,
-      legendKey: legendKey,
+      legendKeys: _legendKeys,
       attendanceRow: attendanceRow ?? this.attendanceRow,
     );
   }
