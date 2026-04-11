@@ -107,7 +107,11 @@ class _HomeTab extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
         children: [
           SizedBox(height: MediaQuery.of(context).padding.top + 16),
-          DashboardHeader(userName: userName),
+          DashboardHeader(
+            userName: userName,
+            avatarUrl: authState.profile?.avatar,
+            initial: authState.profile?.initial,
+          ),
           const SizedBox(height: 20),
           DailyCheckInCard(
             attendance: data.dailyAttendance,
@@ -151,6 +155,98 @@ String _profileInitials(String name) {
   return ('$a$b').toUpperCase();
 }
 
+/// Large profile photo (network) or initials on accent — matches [DashboardHeader] logic.
+class _ProfileTabAvatar extends StatelessWidget {
+  const _ProfileTabAvatar({
+    required this.avatarUrl,
+    required this.initialsLabel,
+    required this.accent,
+  });
+
+  final String? avatarUrl;
+  final String initialsLabel;
+  final Color accent;
+
+  static const double _size = 112;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = avatarUrl?.trim();
+    final displayInitial =
+        initialsLabel.trim().isEmpty ? '?' : initialsLabel.trim();
+
+    Widget initialsLayer() {
+      return ColoredBox(
+        color: accent,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                displayInitial,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 36,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
+                maxLines: 1,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    Widget imageOrInitials() {
+      if (url == null || url.isEmpty) {
+        return initialsLayer();
+      }
+      return Image.network(
+        url,
+        width: _size,
+        height: _size,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => initialsLayer(),
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return ColoredBox(
+            color: accent.withValues(alpha: 0.25),
+            child: Center(
+              child: SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: accent,
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    return Container(
+      width: _size,
+      height: _size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.35),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipOval(child: imageOrInitials()),
+    );
+  }
+}
+
 class _ProfileTab extends ConsumerStatefulWidget {
   const _ProfileTab({required this.onBackToHome});
 
@@ -191,6 +287,11 @@ class _ProfileTabState extends ConsumerState<_ProfileTab> {
         ? deptText
         : (companyText.isNotEmpty ? companyText : '');
 
+    final initialsForAvatar = (profile != null &&
+            profile.initial.trim().isNotEmpty)
+        ? profile.initial.trim()
+        : _profileInitials(displayName);
+
     final accent = DashboardTheme.accentBlue;
     const darkBlue = Color(0xFF1A3A6B);
 
@@ -227,30 +328,10 @@ class _ProfileTabState extends ConsumerState<_ProfileTab> {
                       clipBehavior: Clip.none,
                       alignment: Alignment.center,
                       children: [
-                        Container(
-                          width: 112,
-                          height: 112,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: accent,
-                            boxShadow: [
-                              BoxShadow(
-                                color: accent.withValues(alpha: 0.35),
-                                blurRadius: 20,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            _profileInitials(displayName),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 36,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
+                        _ProfileTabAvatar(
+                          avatarUrl: profile?.avatar,
+                          initialsLabel: initialsForAvatar,
+                          accent: accent,
                         ),
                         Positioned(
                           right: -2,

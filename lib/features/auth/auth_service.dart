@@ -32,6 +32,12 @@ class CurrentUserProfile {
   final List<WorkPlace> workPlaces;
   final bool selfieRequired;
 
+  /// Profile image URL from API (`avatar`, `avatar_url`, etc.).
+  final String? avatar;
+
+  /// Display initials (e.g. `JD`). From API `initial` / `initials`, or derived from [fullName].
+  final String initial;
+
   const CurrentUserProfile({
     required this.fullName,
     required this.companyName,
@@ -40,7 +46,45 @@ class CurrentUserProfile {
     required this.checkInAnywhere,
     required this.workPlaces,
     required this.selfieRequired,
+    this.avatar,
+    this.initial = '',
   });
+
+  /// Builds initials for avatar fallback when API does not send [initial].
+  static String deriveInitialsFromName(String name) {
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((e) => e.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) {
+      final s = parts[0];
+      if (s.length >= 2) return s.substring(0, 2).toUpperCase();
+      return s.toUpperCase();
+    }
+    final a = parts.first[0];
+    final b = parts.last[0];
+    return ('$a$b').toUpperCase();
+  }
+
+  static String? _readAvatar(Map<String, dynamic> json) {
+    const keys = <String>[
+      'avatar',
+      'avatar_url',
+      'photo',
+      'profile_photo',
+      'photo_url',
+      'photoUrl',
+    ];
+    for (final k in keys) {
+      final v = json[k];
+      if (v == null) continue;
+      final s = v.toString().trim();
+      if (s.isNotEmpty && s != 'null') return s;
+    }
+    return null;
+  }
 
   factory CurrentUserProfile.fromJson(Map<String, dynamic> json) {
     final rawPlaces = json['work_places'] as List<dynamic>? ?? [];
@@ -52,14 +96,22 @@ class CurrentUserProfile {
         places.add(WorkPlace.fromJson(Map<String, dynamic>.from(e)));
       }
     }
+    final fullName = (json['full_name'] ?? '').toString();
+    var initial =
+        (json['initial'] ?? json['initials'] ?? '').toString().trim();
+    if (initial.isEmpty) {
+      initial = deriveInitialsFromName(fullName);
+    }
     return CurrentUserProfile(
-      fullName: (json['full_name'] ?? '').toString(),
+      fullName: fullName,
       companyName: (json['company_name'] ?? '').toString(),
       disciplineName: (json['discipline_name'] ?? '').toString(),
       titleName: (json['title_name'] ?? '').toString(),
       checkInAnywhere: json['check_in_anywhere'] == true,
       workPlaces: places,
       selfieRequired: json['selfie_required'] == true,
+      avatar: _readAvatar(json),
+      initial: initial,
     );
   }
 
@@ -71,6 +123,8 @@ class CurrentUserProfile {
     'check_in_anywhere': checkInAnywhere,
     'work_places': workPlaces.map((e) => e.toJson()).toList(),
     'selfie_required': selfieRequired,
+    'avatar': avatar,
+    'initial': initial,
   };
 
   /// Persisted shape: `{ "me": { ...profile fields } }`.

@@ -55,7 +55,12 @@ class CalendarTab extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
         children: [
           SizedBox(height: MediaQuery.of(context).padding.top + 16),
-          DashboardHeader(userName: userName, title: 'My Calendar'),
+          DashboardHeader(
+            userName: userName,
+            title: 'My Calendar',
+            avatarUrl: authState.profile?.avatar,
+            initial: authState.profile?.initial,
+          ),
           const SizedBox(height: 20),
           CalendarMonthView(
             data: data,
