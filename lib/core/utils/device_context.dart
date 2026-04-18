@@ -133,4 +133,39 @@ class DeviceContext {
     } catch (_) {}
     return '';
   }
+
+  /// Best-effort human-readable device name for attendance payload.
+  static Future<String> bestEffortDeviceName() async {
+    try {
+      final plugin = DeviceInfoPlugin();
+      if (Platform.isAndroid) {
+        final info = await plugin.androidInfo;
+        final brand = info.brand.trim();
+        final model = info.model.trim();
+        final name = [brand, model].where((e) => e.isNotEmpty).join(' - ');
+        if (name.isNotEmpty) return name;
+      } else if (Platform.isIOS) {
+        final info = await plugin.iosInfo;
+        final name = info.name.trim();
+        if (name.isNotEmpty) return name;
+        final model = info.model.trim();
+        if (model.isNotEmpty) return model;
+      } else if (Platform.isWindows) {
+        final info = await plugin.windowsInfo;
+        final name = info.computerName.trim();
+        if (name.isNotEmpty) return name;
+      } else if (Platform.isMacOS) {
+        final info = await plugin.macOsInfo;
+        final name = info.computerName.trim();
+        if (name.isNotEmpty) return name;
+      } else if (Platform.isLinux) {
+        final info = await plugin.linuxInfo;
+        final name = info.name.trim();
+        if (name.isNotEmpty) return name;
+      }
+    } catch (_) {
+      // fallback below
+    }
+    return Platform.operatingSystem;
+  }
 }

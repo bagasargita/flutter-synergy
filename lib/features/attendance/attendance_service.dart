@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -85,6 +86,7 @@ class AttendanceService {
 
     final timestamp = at ?? DateTime.now();
     final deviceId = await DeviceContext.getOrCreateDeviceId();
+    final deviceName = await DeviceContext.bestEffortDeviceName();
     final ip = await DeviceContext.bestEffortLocalIpv4();
 
     final path = attachmentPath?.trim() ?? '';
@@ -97,9 +99,12 @@ class AttendanceService {
         'lat': lat.toString(),
         'lon': lon.toString(),
         kind.timeFieldName: formatCheckTimestamp(timestamp),
-        'device_info[device_id]': deviceId,
-        // API spelling (single "s"): matches Postman / backend.
-        'device_info[ip_addres]': ip.isEmpty ? '0.0.0.0' : ip,
+        'device_info': jsonEncode(<String, dynamic>{
+          'device_id': deviceId,
+          'device_name': deviceName,
+          // Backend contract currently expects this exact key spelling.
+          'ip_address': ip.isEmpty ? '0.0.0.0' : ip,
+        }),
       };
 
       if (hasPhoto) {
