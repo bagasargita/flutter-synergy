@@ -348,11 +348,11 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.location_on_outlined,
-                          size: 18,
-                          color: theme.colorScheme.primary,
-                        ),
+                        // Icon(
+                        //   Icons.location_on_outlined,
+                        //   size: 18,
+                        //   color: theme.colorScheme.primary,
+                        // ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
@@ -376,7 +376,9 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
                       _geofenceStatusMessage(),
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.grey.shade600,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: _canCheckIn ? Colors.grey.shade700 : Colors.red,
                       ),
                     ),
                   ],
