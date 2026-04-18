@@ -13,13 +13,7 @@ import 'package:flutter_synergy/features/camera/face_detection_ios.dart';
 import 'package:flutter_synergy/features/camera/face_detection_service.dart';
 
 /// Flow: Camera → Face detection → Liveness (iOS: close then open; Android: blink) → Capture.
-enum _CameraFlowState {
-  loading,
-  scanning,
-  livenessEyes,
-  readyToCapture,
-  error,
-}
+enum _CameraFlowState { loading, scanning, livenessEyes, readyToCapture, error }
 
 /// Last iOS BGRA preview frame (copied; plugin may reuse buffers).
 final class _IosBgraSnapshot {
@@ -77,6 +71,7 @@ class _CameraPageState extends State<CameraPage> {
 
   /// “Open again” after a blink: iOS BGRA is fast; ML Kit stills need an extra frame sometimes.
   int get _requiredOpenFrames => Platform.isIOS ? 1 : 2;
+
   /// Single closed frame is enough to register a blink; supplemental heuristics add robustness.
   int get _requiredClosedFrames => 1;
 
@@ -423,12 +418,10 @@ class _CameraPageState extends State<CameraPage> {
     }
     setState(
       () => _message = _closedEyesConfirmed
-          ? (Platform.isAndroid
-              ? 'Keep your eyes open'
-              : 'Now open your eyes')
+          ? (Platform.isAndroid ? 'Keep your eyes open' : 'Now open your eyes')
           : (Platform.isAndroid
-              ? 'Blink once'
-              : 'Close your eyes and hold for a moment'),
+                ? 'Blink once'
+                : 'Close your eyes and hold for a moment'),
     );
     return true;
   }
@@ -496,9 +489,9 @@ class _CameraPageState extends State<CameraPage> {
     }
     // Prefer closed before open. Score-based closed only until we’ve confirmed — otherwise
     // “open again” would keep matching supplemental thresholds and never finish.
-    final closedNow = result.eyesClosed ||
-        (!_closedEyesConfirmed &&
-            _iosLivenessLooksClosedFromScores(result));
+    final closedNow =
+        result.eyesClosed ||
+        (!_closedEyesConfirmed && _iosLivenessLooksClosedFromScores(result));
     if (closedNow) {
       _consecutiveEyesOpen = 0;
       _consecutiveEyesClosed++;
@@ -508,11 +501,11 @@ class _CameraPageState extends State<CameraPage> {
       setState(
         () => _message = _closedEyesConfirmed
             ? (Platform.isAndroid
-                ? 'Keep your eyes open'
-                : 'Now open your eyes')
+                  ? 'Keep your eyes open'
+                  : 'Now open your eyes')
             : (Platform.isAndroid
-                ? 'Blink once'
-                : 'Close your eyes and hold for a moment'),
+                  ? 'Blink once'
+                  : 'Close your eyes and hold for a moment'),
       );
       return;
     }
@@ -520,14 +513,13 @@ class _CameraPageState extends State<CameraPage> {
         _iosLivenessRegisterClosedFromOpennessDrop(result)) {
       return;
     }
-    final openNow = result.eyesOpen ||
-        (_closedEyesConfirmed &&
-            !_iosLivenessLooksClosedFromScores(result));
+    final openNow =
+        result.eyesOpen ||
+        (_closedEyesConfirmed && !_iosLivenessLooksClosedFromScores(result));
     if (openNow) {
       _consecutiveEyesClosed = 0;
       _consecutiveEyesOpen++;
-      if (_closedEyesConfirmed &&
-          _consecutiveEyesOpen >= _requiredOpenFrames) {
+      if (_closedEyesConfirmed && _consecutiveEyesOpen >= _requiredOpenFrames) {
         _transitionToReadyToCapture();
         return;
       }
@@ -535,15 +527,14 @@ class _CameraPageState extends State<CameraPage> {
         () => _message = _closedEyesConfirmed
             ? 'Keep your eyes open — finishing…'
             : (Platform.isAndroid
-                ? 'Blink once'
-                : 'Close your eyes and hold for a moment'),
+                  ? 'Blink once'
+                  : 'Close your eyes and hold for a moment'),
       );
       return;
     }
     if (Platform.isIOS) {
       setState(
-        () => _message =
-            'Close your eyes, then open them when we say so',
+        () => _message = 'Close your eyes, then open them when we say so',
       );
       return;
     }
@@ -704,8 +695,8 @@ class _CameraPageState extends State<CameraPage> {
     return c.value.isRecordingVideo
         ? c.value.recordingOrientation!
         : (c.value.previewPauseOrientation ??
-            c.value.lockedCaptureOrientation ??
-            c.value.deviceOrientation);
+              c.value.lockedCaptureOrientation ??
+              c.value.deviceOrientation);
   }
 
   bool _isCameraLandscape(CameraController c) {
@@ -805,14 +796,6 @@ class _CameraPageState extends State<CameraPage> {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                _error ?? '',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.white70,
-                ),
-              ),
-              const SizedBox(height: 24),
               FilledButton.icon(
                 onPressed: () {
                   setState(() {
@@ -864,7 +847,11 @@ class _CameraPageState extends State<CameraPage> {
                 child: Text(
                   _message ?? 'Position your face',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white, fontSize: 15),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
               if (_state == _CameraFlowState.readyToCapture &&
