@@ -174,6 +174,7 @@ class _DayCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final isSelected = day.isSelected;
     final isToday = day.isToday;
+    final todayLegend = _legendForKey('today');
     final holidayLegend = _legendForKey('holiday');
     final isPublicHoliday = day.dayType == 'PUBLIC_HOLIDAY';
     // Holiday uses number color only; other keys (leave + late, etc.) show as dots.
@@ -186,16 +187,15 @@ class _DayCell extends StatelessWidget {
 
     final Color baseColor = DashboardTheme.accentBlue;
 
-    // Today: solid fill. Selected (non-today): outline only.
-    // When a day is both today and selected, keep solid "today" styling.
-    // Public holiday: use legend holiday color for the number, never the cell dot.
+    // Today/public holiday use number color (no solid fill).
+    // Selected (non-today): outline only.
     final Color bgColor;
     final Color borderColor;
     final Color textColor;
     if (isToday) {
-      bgColor = baseColor;
+      bgColor = Colors.transparent;
       borderColor = Colors.transparent;
-      textColor = Colors.white;
+      textColor = todayLegend?.dotColor ?? baseColor;
     } else if (isSelected) {
       bgColor = Colors.transparent;
       borderColor = baseColor.withValues(alpha: 0.7);
@@ -214,7 +214,7 @@ class _DayCell extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(22),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -237,20 +237,22 @@ class _DayCell extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 2),
           if (markLegends.isNotEmpty)
-            Wrap(
-              spacing: 3,
-              runSpacing: 2,
-              alignment: WrapAlignment.center,
-              children: [
-                for (final item in markLegends)
-                  CalendarLegendMark(
-                    color: item.dotColor,
-                    symbol: item.symbol,
-                    size: markLegends.length > 3 ? 5 : 6,
-                  ),
-              ],
+            Transform.translate(
+              offset: const Offset(0, -7),
+              child: Wrap(
+                spacing: 3,
+                runSpacing: 1,
+                alignment: WrapAlignment.center,
+                children: [
+                  for (final item in markLegends)
+                    CalendarLegendMark(
+                      color: item.dotColor,
+                      symbol: item.symbol,
+                      size: markLegends.length > 3 ? 5 : 6,
+                    ),
+                ],
+              ),
             ),
         ],
       ),
