@@ -55,8 +55,8 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: assets/Synergy-Only_M.png
-  adaptive_icon_foreground: assets/Synergy-Only_M.png
+  image_path: assets/Synergy-Only_M.jpg
+  adaptive_icon_foreground: assets/Synergy-Only_M.jpg
   adaptive_icon_background: "#FFFFFF"
 
 flutter_native_splash:
