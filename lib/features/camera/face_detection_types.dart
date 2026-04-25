@@ -21,6 +21,7 @@ class FaceDetectionResult {
     this.rightEyeOpenProbability,
     this.classificationAvailable = true,
     this.minFaceWidthRequiredPx = kAndroidMinFaceWidthForCapturePx,
+    this.facingForward = true,
   });
 
   final int faceCount;
@@ -44,6 +45,9 @@ class FaceDetectionResult {
   /// Platform-specific minimum face width (image pixels) for [isGoodForCapture].
   final double minFaceWidthRequiredPx;
 
+  /// True when pose is approximately facing the camera (yaw/roll in range).
+  final bool facingForward;
+
   Rect? get effectiveFaceBounds => faceBoundsImage ?? singleFace?.boundingBox;
 
   bool get hasSingleFace => faceCount == 1 && effectiveFaceBounds != null;
@@ -53,6 +57,7 @@ class FaceDetectionResult {
     return faceCount == 1 &&
         box != null &&
         eyesOpen &&
+        facingForward &&
         box.width >= minFaceWidthRequiredPx;
   }
 }

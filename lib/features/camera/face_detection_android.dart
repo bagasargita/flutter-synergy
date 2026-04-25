@@ -23,6 +23,8 @@ final class FaceDetectionServiceAndroid implements FaceDetectionPlatform {
         );
 
   final FaceDetector _detector;
+  static const double _maxAbsYawDegrees = 18;
+  static const double _maxAbsRollDegrees = 18;
 
   /// Mirrors iOS `_iosLenientEyePair` — tuned for blink / liveness, not rigid thresholds.
   static (bool open, bool closed) _lenientEyePair(double left, double right) {
@@ -66,6 +68,10 @@ final class FaceDetectionServiceAndroid implements FaceDetectionPlatform {
 
     final bool eyesOpen;
     final bool eyesClosed;
+    final yaw = face.headEulerAngleY ?? 0;
+    final roll = face.headEulerAngleZ ?? 0;
+    final facingForward =
+        yaw.abs() <= _maxAbsYawDegrees && roll.abs() <= _maxAbsRollDegrees;
     if (classificationReady) {
       final pair = _lenientEyePair(left, right);
       eyesOpen = pair.$1;
@@ -86,6 +92,7 @@ final class FaceDetectionServiceAndroid implements FaceDetectionPlatform {
       rightEyeOpenProbability: right,
       classificationAvailable: classificationReady,
       minFaceWidthRequiredPx: kAndroidMinFaceWidthForCapturePx,
+      facingForward: facingForward,
     );
   }
 

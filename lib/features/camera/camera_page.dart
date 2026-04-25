@@ -48,6 +48,7 @@ class _CameraPageState extends State<CameraPage> {
   Timer? _captureTimer;
   bool _isProcessing = false;
   bool _isCapturingFinalPhoto = false;
+  int _consecutiveGoodScanFrames = 0;
 
   /// Bumped on dispose so in-flight [takePicture] / analysis does not touch a disposed controller.
   int _cameraGeneration = 0;
@@ -79,6 +80,7 @@ class _CameraPageState extends State<CameraPage> {
   static const Duration _tightLivenessAnalysisInterval = Duration(
     milliseconds: 250,
   );
+  int get _requiredGoodScanFrames => Platform.isAndroid ? 2 : 1;
 
   Duration _periodicAnalysisInterval() {
     if (_state == _CameraFlowState.livenessEyes) {
@@ -348,7 +350,12 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   void _notifyAndroidTakePictureFailedDuringAnalysis() {
-    // Previously no UI hint; keep analysis loop quiet on Android.
+    _stopDetectionAndShowError(
+      userMessage:
+          'Camera failed during verification. Please retry and keep only one face in frame.',
+      technicalError:
+          'Android takePicture failed during analysis (surface combination).',
+    );
   }
 
   void _onIosAnalysisError(Object e, StackTrace st) {
@@ -366,6 +373,48 @@ class _CameraPageState extends State<CameraPage> {
   void _onAndroidAnalysisError(Object e, StackTrace st) {
     if (kDebugMode) {
       debugPrint('CameraPage Android analysis: $e\n$st');
+    }
+    _stopDetectionAndShowError(
+      userMessage:
+          'Face verification stopped because camera analysis failed. Please retry.',
+      technicalError: e.toString(),
+    );
+  }
+
+  void _stopDetectionAndShowError({
+    required String userMessage,
+    String? technicalError,
+  }) {
+    if (!mounted) return;
+    _captureTimer?.cancel();
+    _captureTimer = null;
+    _resetEyeLivenessState();
+    _consecutiveGoodScanFrames = 0;
+    _isProcessing = false;
+    _isCapturingFinalPhoto = false;
+    final pending = _pendingFinalJpegPath;
+    _pendingFinalJpegPath = null;
+    if (pending != null) {
+      unawaited(
+        Future<void>(() async {
+          try {
+            await File(pending).delete();
+          } catch (_) {}
+        }),
+      );
+    }
+
+    // Bump generation and release the controller so no further camera analysis runs.
+    _cameraGeneration++;
+    final released = _controller;
+    _controller = null;
+    setState(() {
+      _state = _CameraFlowState.error;
+      _error = technicalError;
+      _message = userMessage;
+    });
+    if (released != null) {
+      unawaited(_disposeControllerWhenIdle(released));
     }
   }
 
@@ -428,6 +477,12 @@ class _CameraPageState extends State<CameraPage> {
 
   void _applyScanningPhase(FaceDetectionResult result) {
     if (result.isGoodForCapture) {
+      _consecutiveGoodScanFrames++;
+      if (_consecutiveGoodScanFrames < _requiredGoodScanFrames) {
+        setState(() => _message = 'Hold still — verifying face');
+        return;
+      }
+      _consecutiveGoodScanFrames = 0;
       _resetEyeLivenessState();
       setState(() {
         _state = _CameraFlowState.livenessEyes;
@@ -441,6 +496,7 @@ class _CameraPageState extends State<CameraPage> {
       }
       return;
     }
+    _consecutiveGoodScanFrames = 0;
     if (result.faceCount == 0) {
       setState(() => _message = 'Position your face in the frame');
       return;
@@ -462,6 +518,12 @@ class _CameraPageState extends State<CameraPage> {
 
   void _applyLivenessPhase(FaceDetectionResult result) {
     if (result.faceCount != 1) {
+      if (Platform.isAndroid) {
+        // Android should fail fast when face leaves frame to avoid stale-pass.
+        _resetEyeLivenessState();
+        setState(() => _message = 'Keep your face in frame, then blink');
+        return;
+      }
       _iosLivenessBadFaceFrames++;
       if (_iosLivenessBadFaceFrames >= 5) {
         _resetEyeLivenessState();
@@ -795,12 +857,23 @@ class _CameraPageState extends State<CameraPage> {
                   color: Colors.white,
                 ),
               ),
+              if ((_error ?? '').trim().isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _error!,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.white70,
+                  ),
+                ),
+              ],
               const SizedBox(height: 8),
               FilledButton.icon(
                 onPressed: () {
                   setState(() {
                     _state = _CameraFlowState.loading;
                     _error = null;
+                    _message = 'Position your face in the frame';
                   });
                   _initCamera();
                 },

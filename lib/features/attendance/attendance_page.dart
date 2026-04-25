@@ -37,6 +37,11 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
   CurrentUserProfile? _profile;
   List<List<LatLng>> _geofencePolygons = [];
 
+  void _setStateIfMounted(VoidCallback fn) {
+    if (!mounted) return;
+    setState(fn);
+  }
+
   /// Local time for the chip, e.g. `08:23 AM`.
   static String _formatTimeNow() {
     final t = DateTime.now();
@@ -181,7 +186,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
   }
 
   Future<void> _refreshLocation() async {
-    setState(() {
+    _setStateIfMounted(() {
       _isGettingLocation = true;
       _locationError = null;
     });
@@ -189,7 +194,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        setState(() {
+        _setStateIfMounted(() {
           _locationError = 'Location services are disabled.';
         });
         return;
@@ -201,7 +206,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
       }
       if (permission == LocationPermission.deniedForever ||
           permission == LocationPermission.denied) {
-        setState(() {
+        _setStateIfMounted(() {
           _locationError = 'Location permission denied.';
         });
         return;
@@ -217,21 +222,21 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
 
       final currentLatLng = LatLng(position.latitude, position.longitude);
 
-      setState(() {
+      _setStateIfMounted(() {
         _currentLocation = currentLatLng;
       });
 
-      _mapController.move(currentLatLng, 18);
+      if (mounted) {
+        _mapController.move(currentLatLng, 18);
+      }
     } catch (e) {
-      setState(() {
+      _setStateIfMounted(() {
         _locationError = 'Failed to get location';
       });
     } finally {
-      if (mounted) {
-        setState(() {
-          _isGettingLocation = false;
-        });
-      }
+      _setStateIfMounted(() {
+        _isGettingLocation = false;
+      });
     }
   }
 
