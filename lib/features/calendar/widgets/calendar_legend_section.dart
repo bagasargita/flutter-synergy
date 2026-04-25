@@ -57,6 +57,16 @@ class _LegendRowCell extends StatelessWidget {
 
   final CalendarLegendItem item;
 
+  bool _useNumberOneMarker() {
+    final key = item.key.trim().toLowerCase();
+    final label = item.label.trim().toLowerCase();
+    return key == 'today' ||
+        key == 'holiday' ||
+        label == 'today' ||
+        label.contains('public holiday') ||
+        label.contains('weekend');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -66,11 +76,21 @@ class _LegendRowCell extends StatelessWidget {
           width: 22,
           height: 22,
           child: Center(
-            child: CalendarLegendMark(
-              color: item.dotColor,
-              symbol: item.symbol,
-              size: 10,
-            ),
+            child: _useNumberOneMarker()
+                ? Text(
+                    '1',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: item.dotColor,
+                      height: 1,
+                    ),
+                  )
+                : CalendarLegendMark(
+                    color: item.dotColor,
+                    symbol: item.symbol,
+                    size: 10,
+                  ),
           ),
         ),
         const SizedBox(width: 8),
