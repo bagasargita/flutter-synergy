@@ -901,7 +901,7 @@ class _CameraPageState extends State<CameraPage> {
         Positioned(
           left: 0,
           right: 0,
-          bottom: 32,
+          bottom: 670,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
