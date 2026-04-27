@@ -135,7 +135,7 @@ class DailyCheckInCard extends StatelessWidget {
                           Text(
                             attendance.checkIn ?? '-',
                             style: const TextStyle(
-                              fontSize: 16,
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
                               color: DashboardTheme.darkText,
                             ),
@@ -159,7 +159,7 @@ class DailyCheckInCard extends StatelessWidget {
                           Text(
                             attendance.checkOut ?? '-',
                             style: const TextStyle(
-                              fontSize: 16,
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
                               color: DashboardTheme.darkText,
                             ),
