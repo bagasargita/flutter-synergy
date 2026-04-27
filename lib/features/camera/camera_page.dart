@@ -902,57 +902,55 @@ class _CameraPageState extends State<CameraPage> {
           left: 0,
           right: 0,
           bottom: 670,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                margin: const EdgeInsets.symmetric(
-                  horizontal: AppConstants.defaultPadding,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  _message ?? 'Position your face',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 12,
+            ),
+            margin: const EdgeInsets.symmetric(
+              horizontal: AppConstants.defaultPadding,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.black54,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              _message ?? 'Position your face',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
               ),
-              if (_state == _CameraFlowState.readyToCapture &&
-                  !_isCapturingFinalPhoto) ...[
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppConstants.defaultPadding,
-                  ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: _onCapturePressed,
-                      icon: const Icon(Icons.camera_alt_rounded),
-                      label: const Text('Capture'),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
+            ),
+          ),
+        ),
+        if (_state == _CameraFlowState.readyToCapture &&
+            !_isCapturingFinalPhoto)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: AppConstants.defaultPadding,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppConstants.defaultPadding,
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _onCapturePressed,
+                  icon: const Icon(Icons.camera_alt_rounded),
+                  label: const Text('Capture'),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),
-              ],
-            ],
+              ),
+            ),
           ),
-        ),
       ],
     );
   }
