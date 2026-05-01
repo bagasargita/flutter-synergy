@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io' show File, Platform;
-import 'dart:math' as math;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
@@ -11,6 +10,7 @@ import 'package:flutter_synergy/core/constants/app_constants.dart';
 import 'package:flutter_synergy/features/camera/camera_capture_config.dart';
 import 'package:flutter_synergy/features/camera/face_detection_ios.dart';
 import 'package:flutter_synergy/features/camera/face_detection_service.dart';
+import 'package:flutter_synergy/features/camera/camera_verification_logic.dart';
 
 /// Flow: Camera → Face detection → Liveness (iOS: close then open; Android: blink) → Capture.
 enum _CameraFlowState { loading, scanning, livenessEyes, readyToCapture, error }
@@ -31,9 +31,16 @@ final class _IosBgraSnapshot {
 }
 
 class CameraPage extends StatefulWidget {
-  const CameraPage({super.key, this.title = 'Take Photo'});
+  const CameraPage({
+    super.key,
+    this.title = 'Take Photo',
+    this.verificationMode = CameraVerificationMode.onePersonNod,
+    this.headNodParams,
+  });
 
   final String title;
+  final CameraVerificationMode verificationMode;
+  final HeadNodVerificationParams? headNodParams;
 
   @override
   State<CameraPage> createState() => _CameraPageState();
@@ -49,38 +56,24 @@ class _CameraPageState extends State<CameraPage> {
   bool _isProcessing = false;
   bool _isCapturingFinalPhoto = false;
   int _consecutiveGoodScanFrames = 0;
+  late final HeadNodVerificationParams _headNodParams;
+  late final HeadNodVerifier _headNodVerifier;
 
   /// Bumped on dispose so in-flight [takePicture] / analysis does not touch a disposed controller.
   int _cameraGeneration = 0;
   late FaceDetectionService _faceService;
   late CameraCaptureConfig _captureConfig;
-  // Eye liveness: open → brief closed (blink) → open again; consecutive frames reduce false triggers.
-  int _consecutiveEyesOpen = 0;
-  int _consecutiveEyesClosed = 0;
-  bool _closedEyesConfirmed = false;
-
-  /// iOS: brief face loss during eye check should not wipe progress.
-  int _iosLivenessBadFaceFrames = 0;
-
-  /// iOS: max avg(left,right) since liveness started — closed eyes = dip below peak when Vision flags lag.
-  double _iosLivenessOpennessPeak = 0;
 
   _IosBgraSnapshot? _iosPreviewFrame;
 
   /// Silent final image path (BGRA → JPEG on native), if snapshot succeeded.
   String? _pendingFinalJpegPath;
 
-  /// “Open again” after a blink: iOS BGRA is fast; ML Kit stills need an extra frame sometimes.
-  int get _requiredOpenFrames => Platform.isIOS ? 1 : 2;
-
-  /// Single closed frame is enough to register a blink; supplemental heuristics add robustness.
-  int get _requiredClosedFrames => 1;
-
-  /// During eye liveness, analyze often enough to catch a blink (iOS: BGRA; Android: stills).
+  /// During motion verification, analyze often enough to catch a nod.
   static const Duration _tightLivenessAnalysisInterval = Duration(
     milliseconds: 250,
   );
-  int get _requiredGoodScanFrames => Platform.isAndroid ? 2 : 1;
+  int get _requiredGoodScanFrames => _headNodParams.requiredConsecutiveSingleFaceFrames;
 
   Duration _periodicAnalysisInterval() {
     if (_state == _CameraFlowState.livenessEyes) {
@@ -102,6 +95,14 @@ class _CameraPageState extends State<CameraPage> {
   @override
   void initState() {
     super.initState();
+    switch (widget.verificationMode) {
+      case CameraVerificationMode.onePersonNod:
+        _headNodParams =
+            widget.headNodParams ??
+            HeadNodVerificationParams.forPlatform(isIos: Platform.isIOS);
+        break;
+    }
+    _headNodVerifier = HeadNodVerifier(_headNodParams);
     _faceService = FaceDetectionService();
     _initCamera();
   }
@@ -217,12 +218,8 @@ class _CameraPageState extends State<CameraPage> {
     _restartPeriodicAnalysisTimer();
   }
 
-  void _resetEyeLivenessState() {
-    _consecutiveEyesOpen = 0;
-    _consecutiveEyesClosed = 0;
-    _closedEyesConfirmed = false;
-    _iosLivenessBadFaceFrames = 0;
-    _iosLivenessOpennessPeak = 0;
+  void _resetVerificationState() {
+    _headNodVerifier.reset();
   }
 
   /// Periodic face check: iOS and Android use different capture/error handling.
@@ -388,7 +385,7 @@ class _CameraPageState extends State<CameraPage> {
     if (!mounted) return;
     _captureTimer?.cancel();
     _captureTimer = null;
-    _resetEyeLivenessState();
+    _resetVerificationState();
     _consecutiveGoodScanFrames = 0;
     _isProcessing = false;
     _isCapturingFinalPhoto = false;
@@ -432,63 +429,18 @@ class _CameraPageState extends State<CameraPage> {
     }
   }
 
-  /// Extra closed signal when Vision [eyesClosed] is false but scores dropped from baseline.
-  bool _iosLivenessLooksClosedFromScores(FaceDetectionResult result) {
-    final l = result.leftEyeOpenProbability;
-    final r = result.rightEyeOpenProbability;
-    if (l == null || r == null) return true;
-    final avg = (l + r) * 0.5;
-    final lo = math.min(l, r);
-    final hi = math.max(l, r);
-    if (avg < 0.42) return true;
-    if (lo < 0.30) return true;
-    if (avg < 0.52 && hi < 0.50 && lo < 0.40) return true;
-    return false;
-  }
-
-  /// Registers closed eyes when scores dip from a recent peak if flags lag.
-  bool _iosLivenessRegisterClosedFromOpennessDrop(FaceDetectionResult result) {
-    final l = result.leftEyeOpenProbability;
-    final r = result.rightEyeOpenProbability;
-    if (l == null || r == null) return false;
-    final avg = (l + r) * 0.5;
-    if (avg > _iosLivenessOpennessPeak) {
-      _iosLivenessOpennessPeak = avg;
-    }
-    final peak = _iosLivenessOpennessPeak;
-    final drop = peak - avg;
-    if (peak < 0.085) return false;
-    if (drop < 0.030) return false;
-    if (avg > 0.52) return false;
-    _consecutiveEyesOpen = 0;
-    _consecutiveEyesClosed++;
-    if (_consecutiveEyesClosed >= _requiredClosedFrames) {
-      _closedEyesConfirmed = true;
-    }
-    setState(
-      () => _message = _closedEyesConfirmed
-          ? (Platform.isAndroid ? 'Keep your eyes open' : 'Now open your eyes')
-          : (Platform.isAndroid
-                ? 'Blink once'
-                : 'Close your eyes and hold for a moment'),
-    );
-    return true;
-  }
-
   void _applyScanningPhase(FaceDetectionResult result) {
-    if (result.isGoodForCapture) {
+    if (_headNodVerifier.canStart(result)) {
       _consecutiveGoodScanFrames++;
       if (_consecutiveGoodScanFrames < _requiredGoodScanFrames) {
-        setState(() => _message = 'Hold still — verifying face');
+        setState(() => _message = 'Hold still — verifying one person');
         return;
       }
       _consecutiveGoodScanFrames = 0;
-      _resetEyeLivenessState();
+      final update = _headNodVerifier.start();
       setState(() {
         _state = _CameraFlowState.livenessEyes;
-        _message = Platform.isAndroid
-            ? 'Blink once when you\'re ready'
-            : 'Close your eyes and hold for a moment';
+        _message = update.message;
       });
       if (Platform.isIOS || Platform.isAndroid) {
         _restartPeriodicAnalysisTimer();
@@ -506,107 +458,27 @@ class _CameraPageState extends State<CameraPage> {
       return;
     }
     if (result.faceCount == 1) {
-      if (!result.classificationAvailable) {
-        setState(() => _message = 'Hold still — analyzing face');
-      } else if (!result.eyesOpen) {
-        setState(() => _message = 'Look at the camera with eyes open');
-      } else {
-        setState(() => _message = 'Move a little closer to the camera');
-      }
+      setState(() => _message = 'Move a little closer to the camera');
     }
   }
 
   void _applyLivenessPhase(FaceDetectionResult result) {
+    final update = _headNodVerifier.next(result);
+    if (update.verified) {
+      _transitionToReadyToCapture();
+      return;
+    }
     if (result.faceCount != 1) {
-      if (Platform.isAndroid) {
-        // Android should fail fast when face leaves frame to avoid stale-pass.
-        _resetEyeLivenessState();
-        setState(() => _message = 'Keep your face in frame, then blink');
-        return;
-      }
-      _iosLivenessBadFaceFrames++;
-      if (_iosLivenessBadFaceFrames >= 5) {
-        _resetEyeLivenessState();
-        setState(
-          () => _message = Platform.isAndroid
-              ? 'Stay in frame, then blink when ready'
-              : 'Keep your face in frame, then close your eyes',
-        );
-      } else {
-        setState(
-          () => _message = Platform.isAndroid
-              ? 'Stay in frame'
-              : 'Stay in frame — close your eyes when ready',
-        );
-      }
+      _consecutiveGoodScanFrames = 0;
+      _resetVerificationState();
+      setState(() {
+        _state = _CameraFlowState.scanning;
+        _message = update.message;
+      });
+      _restartPeriodicAnalysisTimer();
       return;
     }
-    _iosLivenessBadFaceFrames = 0;
-
-    if (!result.classificationAvailable) {
-      setState(
-        () => _message = 'Keep your face visible — we need to see your eyes',
-      );
-      return;
-    }
-    // Prefer closed before open. Score-based closed only until we’ve confirmed — otherwise
-    // “open again” would keep matching supplemental thresholds and never finish.
-    final closedNow =
-        result.eyesClosed ||
-        (!_closedEyesConfirmed && _iosLivenessLooksClosedFromScores(result));
-    if (closedNow) {
-      _consecutiveEyesOpen = 0;
-      _consecutiveEyesClosed++;
-      if (_consecutiveEyesClosed >= _requiredClosedFrames) {
-        _closedEyesConfirmed = true;
-      }
-      setState(
-        () => _message = _closedEyesConfirmed
-            ? (Platform.isAndroid
-                  ? 'Keep your eyes open'
-                  : 'Now open your eyes')
-            : (Platform.isAndroid
-                  ? 'Blink once'
-                  : 'Close your eyes and hold for a moment'),
-      );
-      return;
-    }
-    if (!_closedEyesConfirmed &&
-        _iosLivenessRegisterClosedFromOpennessDrop(result)) {
-      return;
-    }
-    final openNow =
-        result.eyesOpen ||
-        (_closedEyesConfirmed && !_iosLivenessLooksClosedFromScores(result));
-    if (openNow) {
-      _consecutiveEyesClosed = 0;
-      _consecutiveEyesOpen++;
-      if (_closedEyesConfirmed && _consecutiveEyesOpen >= _requiredOpenFrames) {
-        _transitionToReadyToCapture();
-        return;
-      }
-      setState(
-        () => _message = _closedEyesConfirmed
-            ? 'Keep your eyes open — finishing…'
-            : (Platform.isAndroid
-                  ? 'Blink once'
-                  : 'Close your eyes and hold for a moment'),
-      );
-      return;
-    }
-    if (Platform.isIOS) {
-      setState(
-        () => _message = 'Close your eyes, then open them when we say so',
-      );
-      return;
-    }
-    _consecutiveEyesOpen = 0;
-    _consecutiveEyesClosed = 0;
-    setState(
-      () => _message = Platform.isAndroid
-          ? 'Blink once when you\'re ready'
-          : 'Close your eyes, then open them when prompted',
-    );
+    setState(() => _message = update.message);
   }
 
   void _transitionToReadyToCapture() {
