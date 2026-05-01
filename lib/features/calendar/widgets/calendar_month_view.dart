@@ -212,6 +212,8 @@ class _DayCell extends StatelessWidget {
       textColor = DashboardTheme.darkText;
     }
 
+    const legendAreaHeight = 12.0;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(22),
@@ -237,23 +239,27 @@ class _DayCell extends StatelessWidget {
               ),
             ),
           ),
-          if (markLegends.isNotEmpty)
-            Transform.translate(
-              offset: const Offset(0, -7),
-              child: Wrap(
-                spacing: 3,
-                runSpacing: 1,
-                alignment: WrapAlignment.center,
-                children: [
-                  for (final item in markLegends)
-                    CalendarLegendMark(
-                      color: item.dotColor,
-                      symbol: item.symbol,
-                      size: markLegends.length > 3 ? 5 : 6,
+          Transform.translate(
+            offset: const Offset(0, -7),
+            child: SizedBox(
+              height: legendAreaHeight,
+              child: markLegends.isEmpty
+                  ? null
+                  : Wrap(
+                      spacing: 3,
+                      runSpacing: 1,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        for (final item in markLegends)
+                          CalendarLegendMark(
+                            color: item.dotColor,
+                            symbol: item.symbol,
+                            size: markLegends.length > 3 ? 5 : 6,
+                          ),
+                      ],
                     ),
-                ],
-              ),
             ),
+          ),
         ],
       ),
     );
