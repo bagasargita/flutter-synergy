@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_synergy/core/api/api_exception.dart';
 import 'package:flutter_synergy/core/utils/logger.dart';
 import 'package:flutter_synergy/features/calendar/calendar_models.dart';
 import 'package:flutter_synergy/features/calendar/calendar_service.dart';
@@ -7,18 +8,26 @@ class CalendarState {
   final bool isLoading;
   final CalendarMonthData? data;
   final String? errorMessage;
+  final int? errorStatusCode;
 
-  const CalendarState({this.isLoading = false, this.data, this.errorMessage});
+  const CalendarState({
+    this.isLoading = false,
+    this.data,
+    this.errorMessage,
+    this.errorStatusCode,
+  });
 
   CalendarState copyWith({
     bool? isLoading,
     CalendarMonthData? data,
     String? errorMessage,
+    int? errorStatusCode,
   }) {
     return CalendarState(
       isLoading: isLoading ?? this.isLoading,
       data: data ?? this.data,
       errorMessage: errorMessage,
+      errorStatusCode: errorStatusCode,
     );
   }
 }
@@ -37,7 +46,11 @@ class CalendarController extends StateNotifier<CalendarState> {
 
   /// Loads `/attendances/monthly?start_date=YYYY-MM-01` and `/calendar_legends` for [year]/[month].
   Future<void> loadMonth(int year, int month) async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(
+      isLoading: true,
+      errorMessage: null,
+      errorStatusCode: null,
+    );
 
     try {
       final data = await _service.fetchMonth(
@@ -48,7 +61,17 @@ class CalendarController extends StateNotifier<CalendarState> {
       state = state.copyWith(isLoading: false, data: data);
       AppLogger.info('Calendar month loaded: $year-$month');
     } catch (e, st) {
-      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      if (e is ApiException && e.sessionExpired) {
+        state = state.copyWith(isLoading: false);
+        return;
+      }
+      final message = e is ApiException ? e.message : e.toString();
+      final code = e is ApiException ? e.statusCode : null;
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: message,
+        errorStatusCode: code,
+      );
       AppLogger.error('Failed to load calendar data', error: e, stackTrace: st);
     }
   }

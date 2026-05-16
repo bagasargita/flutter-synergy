@@ -7,18 +7,26 @@ class DashboardState {
   final bool isLoading;
   final DashboardData? data;
   final String? errorMessage;
+  final int? errorStatusCode;
 
-  const DashboardState({this.isLoading = false, this.data, this.errorMessage});
+  const DashboardState({
+    this.isLoading = false,
+    this.data,
+    this.errorMessage,
+    this.errorStatusCode,
+  });
 
   DashboardState copyWith({
     bool? isLoading,
     DashboardData? data,
     String? errorMessage,
+    int? errorStatusCode,
   }) {
     return DashboardState(
       isLoading: isLoading ?? this.isLoading,
       data: data ?? this.data,
       errorMessage: errorMessage,
+      errorStatusCode: errorStatusCode,
     );
   }
 }
@@ -31,15 +39,28 @@ class DashboardController extends StateNotifier<DashboardState> {
   }
 
   Future<void> loadDashboard() async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(
+      isLoading: true,
+      errorMessage: null,
+      errorStatusCode: null,
+    );
 
     try {
       final data = await _service.fetchDashboardData();
       state = state.copyWith(isLoading: false, data: data);
       AppLogger.info('Dashboard data loaded');
     } catch (e) {
+      if (e is ApiException && e.sessionExpired) {
+        state = state.copyWith(isLoading: false);
+        return;
+      }
       final message = e is ApiException ? e.message : e.toString();
-      state = state.copyWith(isLoading: false, errorMessage: message);
+      final code = e is ApiException ? e.statusCode : null;
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: message,
+        errorStatusCode: code,
+      );
       AppLogger.error('Failed to load dashboard', error: e);
     }
   }

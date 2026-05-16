@@ -1,4 +1,6 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_synergy/core/api/api_request_extra.dart';
+import 'package:flutter_synergy/core/auth/auth_session_coordinator.dart';
 import 'package:flutter_synergy/core/utils/logger.dart';
 import 'package:flutter_synergy/core/utils/token_storage.dart';
 
@@ -33,7 +35,13 @@ class AuthInterceptor extends Interceptor {
         request.path == '/refresh' || request.uri.path.endsWith('/refresh');
     final alreadyRetried = request.extra[_retryKey] == true;
 
-    if (!isUnauthorized || isRefreshRequest || alreadyRetried) {
+    if (!isUnauthorized) {
+      handler.next(err);
+      return;
+    }
+
+    if (isRefreshRequest || alreadyRetried) {
+      await _expireSession(err);
       handler.next(err);
       return;
     }
@@ -45,8 +53,7 @@ class AuthInterceptor extends Interceptor {
     );
 
     if (refreshedAccessToken == null || refreshedAccessToken.isEmpty) {
-      AppLogger.warning('Refresh token failed - clearing local session');
-      await TokenStorage.clearToken();
+      await _expireSession(err);
       handler.next(err);
       return;
     }
@@ -58,8 +65,18 @@ class AuthInterceptor extends Interceptor {
       final retryResponse = await _dio.fetch<dynamic>(request);
       handler.resolve(retryResponse);
     } on DioException catch (retryError) {
+      if (retryError.response?.statusCode == 401) {
+        await _expireSession(retryError);
+      }
       handler.next(retryError);
     }
+  }
+
+  Future<void> _expireSession(DioException err) async {
+    AppLogger.warning('Session expired - clearing local session');
+    await TokenStorage.clearToken();
+    err.requestOptions.extra[ApiRequestExtra.sessionExpired] = true;
+    await AuthSessionCoordinator.instance.notifySessionExpired();
   }
 
   Future<String?> _refreshAccessToken({required String baseUrl}) async {
