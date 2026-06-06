@@ -7,6 +7,7 @@ import 'package:flutter_synergy/core/theme/app_theme.dart';
 import 'package:flutter_synergy/core/utils/environment.dart';
 import 'package:flutter_synergy/core/utils/global_error_handler.dart';
 import 'package:flutter_synergy/core/api/api_provider.dart';
+import 'package:flutter_synergy/core/widgets/auth_session_listener.dart';
 import 'package:flutter_synergy/core/widgets/root_scaffold_messenger_key.dart';
 
 Future<void> main() async {
@@ -24,7 +25,7 @@ Future<void> main() async {
           // Inject the chosen environment into the Riverpod graph.
           environmentProvider.overrideWithValue(environment),
         ],
-        child: const FlutterSynergyApp(),
+        child: const AuthSessionListener(child: FlutterSynergyApp()),
       ),
     );
   });

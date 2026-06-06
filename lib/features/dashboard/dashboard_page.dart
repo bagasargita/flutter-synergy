@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_synergy/core/utils/debug_auth_tokens.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_synergy/core/router/app_router.dart';
 import 'package:flutter_synergy/core/widgets/async_value_widget.dart';
@@ -88,7 +90,14 @@ class _HomeTab extends ConsumerWidget {
     if (dashState.errorMessage != null && dashState.data == null) {
       return ErrorDisplayWidget(
         message: dashState.errorMessage!,
-        onRetry: () => ref.read(dashboardControllerProvider.notifier).refresh(),
+        onRetry: () async {
+          if (dashState.errorStatusCode == 401) {
+            await ref.read(authControllerProvider.notifier).logout();
+            if (context.mounted) context.go(RoutePaths.login);
+            return;
+          }
+          ref.read(dashboardControllerProvider.notifier).refresh();
+        },
       );
     }
 
@@ -172,8 +181,9 @@ class _ProfileTabAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final url = avatarUrl?.trim();
-    final displayInitial =
-        initialsLabel.trim().isEmpty ? '?' : initialsLabel.trim();
+    final displayInitial = initialsLabel.trim().isEmpty
+        ? '?'
+        : initialsLabel.trim();
 
     Widget initialsLayer() {
       return ColoredBox(
@@ -287,8 +297,8 @@ class _ProfileTabState extends ConsumerState<_ProfileTab> {
         ? deptText
         : (companyText.isNotEmpty ? companyText : '');
 
-    final initialsForAvatar = (profile != null &&
-            profile.initial.trim().isNotEmpty)
+    final initialsForAvatar =
+        (profile != null && profile.initial.trim().isNotEmpty)
         ? profile.initial.trim()
         : _profileInitials(displayName);
 
@@ -417,6 +427,20 @@ class _ProfileTabState extends ConsumerState<_ProfileTab> {
                       ),
                     ],
                     const SizedBox(height: 40),
+                    if (kDebugMode) ...[
+                      _ProfileDebugTokensCard(
+                        onApplied: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Dummy tokens saved. Open HOME and pull to refresh.',
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     Material(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(14),
@@ -489,6 +513,57 @@ class _ProfileTabState extends ConsumerState<_ProfileTab> {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Debug-only: overwrite tokens to test 401 / refresh / session expiry.
+class _ProfileDebugTokensCard extends StatelessWidget {
+  const _ProfileDebugTokensCard({required this.onApplied});
+
+  final VoidCallback onApplied;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFFFF7ED),
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+            child: Text(
+              'Debug: dummy tokens',
+              style: TextStyle(
+                color: Colors.orange.shade900,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          ListTile(
+            dense: true,
+            title: const Text('Invalid access + refresh'),
+            subtitle: const Text('Refresh fails → login'),
+            onTap: () async {
+              await DebugAuthTokens.applyInvalidAccessAndRefresh();
+              onApplied();
+            },
+          ),
+          const Divider(height: 1),
+          ListTile(
+            dense: true,
+            title: const Text('Invalid access only'),
+            subtitle: const Text('Keeps real refresh from login'),
+            onTap: () async {
+              await DebugAuthTokens.applyInvalidAccessOnly();
+              onApplied();
+            },
+          ),
+        ],
       ),
     );
   }

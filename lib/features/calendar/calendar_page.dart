@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:flutter_synergy/core/router/app_router.dart';
 import 'package:flutter_synergy/core/widgets/async_value_widget.dart'
     show ErrorDisplayWidget, LoadingWidget;
 import 'package:flutter_synergy/features/auth/auth_provider.dart';
@@ -35,9 +37,14 @@ class CalendarTab extends ConsumerWidget {
         body: Center(
           child: ErrorDisplayWidget(
             message: state.errorMessage!,
-            onRetry: () => ref
-                .read(calendarControllerProvider.notifier)
-                .loadCurrentMonth(),
+            onRetry: () async {
+              if (state.errorStatusCode == 401) {
+                await ref.read(authControllerProvider.notifier).logout();
+                if (context.mounted) context.go(RoutePaths.login);
+                return;
+              }
+              ref.read(calendarControllerProvider.notifier).loadCurrentMonth();
+            },
           ),
         ),
       );
