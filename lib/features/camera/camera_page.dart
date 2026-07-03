@@ -67,8 +67,14 @@ class _CameraPageState extends State<CameraPage> {
 
   _IosBgraSnapshot? _iosPreviewFrame;
 
-  /// Silent final image path (BGRA → JPEG on native), if snapshot succeeded.
+  /// Silent final image path (BGRA → JPEG on native for iOS; reused liveness
+  /// capture for Android), if a frame was successfully staged.
   String? _pendingFinalJpegPath;
+
+  /// Android: path of the most recent [takePicture] result used for liveness
+  /// analysis. Reused as the final captured photo so auto-capture does not
+  /// need to trigger another full camera capture.
+  String? _lastAndroidAnalysisFilePath;
 
   /// “Open again” after a blink: iOS BGRA is fast; ML Kit stills need an extra frame sometimes.
   int get _requiredOpenFrames => Platform.isIOS ? 1 : 2;
@@ -333,6 +339,23 @@ class _CameraPageState extends State<CameraPage> {
     }
     if (!mounted || gen != _cameraGeneration) return null;
 
+    // Android: remember this frame so a later successful liveness check can
+    // reuse it as the final photo instead of triggering another full
+    // takePicture() call during auto-capture.
+    if (Platform.isAndroid) {
+      final prev = _lastAndroidAnalysisFilePath;
+      _lastAndroidAnalysisFilePath = file.path;
+      if (prev != null && prev != file.path) {
+        unawaited(
+          Future<void>(() async {
+            try {
+              await File(prev).delete();
+            } catch (_) {}
+          }),
+        );
+      }
+    }
+
     final cooldown = _captureConfig.postStillCaptureCooldown;
     if (cooldown > Duration.zero) {
       await Future<void>.delayed(cooldown);
@@ -394,11 +417,22 @@ class _CameraPageState extends State<CameraPage> {
     _isCapturingFinalPhoto = false;
     final pending = _pendingFinalJpegPath;
     _pendingFinalJpegPath = null;
+    final lastAnalysis = _lastAndroidAnalysisFilePath;
+    _lastAndroidAnalysisFilePath = null;
     if (pending != null) {
       unawaited(
         Future<void>(() async {
           try {
             await File(pending).delete();
+          } catch (_) {}
+        }),
+      );
+    }
+    if (lastAnalysis != null && lastAnalysis != pending) {
+      unawaited(
+        Future<void>(() async {
+          try {
+            await File(lastAnalysis).delete();
           } catch (_) {}
         }),
       );
@@ -615,6 +649,14 @@ class _CameraPageState extends State<CameraPage> {
     if (Platform.isIOS) {
       unawaited(_transitionToReadyToCaptureIos());
     } else {
+      // Android: reuse the frame that just passed liveness verification as
+      // the final photo, instead of triggering another full takePicture()
+      // call during auto-capture (this was the source of the perceived lag).
+      final lastFile = _lastAndroidAnalysisFilePath;
+      _lastAndroidAnalysisFilePath = null;
+      if (lastFile != null && File(lastFile).existsSync()) {
+        _pendingFinalJpegPath = lastFile;
+      }
       setState(() {
         _state = _CameraFlowState.readyToCapture;
         _message = _readyToCaptureMessage();
@@ -702,6 +744,8 @@ class _CameraPageState extends State<CameraPage> {
         }
       }
 
+      // Fallback: only reached if there was no reusable liveness/BGRA frame
+      // (e.g. it was deleted or never staged), so a fresh capture is taken.
       final file = await c.takePicture();
       if (!mounted || gen != _cameraGeneration) return;
       final dir = await getTemporaryDirectory();
@@ -729,9 +773,12 @@ class _CameraPageState extends State<CameraPage> {
   Future<void> _autoCaptureAfterVerification() async {
     final gen = _cameraGeneration;
     if (_isCapturingFinalPhoto || !mounted || gen != _cameraGeneration) return;
+    // Android no longer needs to wait for a fresh takePicture() call during
+    // auto-capture (the liveness frame is reused), so the settle delay is
+    // just a short UI beat rather than camera warm-up time.
     final settle = Platform.isIOS
         ? const Duration(milliseconds: 400)
-        : const Duration(milliseconds: 250);
+        : const Duration(milliseconds: 80);
     await Future<void>.delayed(settle);
     if (!mounted || gen != _cameraGeneration) return;
     await _onCapturePressed();
@@ -740,11 +787,22 @@ class _CameraPageState extends State<CameraPage> {
   void _cancel() {
     final pending = _pendingFinalJpegPath;
     _pendingFinalJpegPath = null;
+    final lastAnalysis = _lastAndroidAnalysisFilePath;
+    _lastAndroidAnalysisFilePath = null;
     if (pending != null) {
       unawaited(
         Future<void>(() async {
           try {
             await File(pending).delete();
+          } catch (_) {}
+        }),
+      );
+    }
+    if (lastAnalysis != null && lastAnalysis != pending) {
+      unawaited(
+        Future<void>(() async {
+          try {
+            await File(lastAnalysis).delete();
           } catch (_) {}
         }),
       );
@@ -901,7 +959,8 @@ class _CameraPageState extends State<CameraPage> {
         Positioned(
           left: 0,
           right: 0,
-          bottom: 670,
+          top:16,
+          //bottom: 670,
           child: Container(
             padding: const EdgeInsets.symmetric(
               horizontal: 24,
