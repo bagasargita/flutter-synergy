@@ -170,9 +170,40 @@ Upload that file in [Google Play Console](https://play.google.com/console) → y
 
 #### Release signing (required for Play)
 
-1. Create an upload keystore (once), e.g. with `keytool` — see [Flutter: Sign the app](https://docs.flutter.dev/deployment/android#signing-the-app).
-2. Add a `key.properties` file **outside** git (e.g. only on CI or your machine) with `storePassword`, `keyPassword`, `keyAlias`, `storeFile`.
-3. Wire **release** `signingConfig` in `android/app/build.gradle.kts` (this project still uses debug signing in `release` — replace before Play upload).
+Without `android/key.properties`, **release builds will fail** (Play rejects debug-signed bundles).
+
+1. Create an upload keystore **once** (save passwords somewhere safe):
+
+```bash
+keytool -genkey -v -keystore android/upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+```
+
+2. Copy the example and edit:
+
+```bash
+cp android/key.properties.example android/key.properties
+```
+
+`android/key.properties`:
+
+```properties
+storePassword=YOUR_STORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=upload
+storeFile=upload-keystore.jks
+```
+
+(`storeFile` is relative to the `android/` folder.)
+
+3. Rebuild:
+
+```bash
+flutter build appbundle --release
+```
+
+4. Upload `build/app/outputs/bundle/release/app-release.aab` to Play Console.
+
+**Never commit** `key.properties` or `*.jks` (already in `.gitignore`).
 
 Current application id is `com.synergy.flutter_synergy` (`android/app/build.gradle.kts`). Change it only with a deliberate Play/app-id migration plan.
 
